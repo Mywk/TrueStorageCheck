@@ -1,0 +1,6 @@
+﻿.vs
+bin
+obj
+TrueStorageCheck_GUI.csproj.user
+Properties/PublishProfiles
+Properties/launchSettings.json

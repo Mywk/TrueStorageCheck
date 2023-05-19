@@ -1,0 +1,209 @@
+﻿<!--
+    Copyright (C) 2023 - Mywk.Net
+    Licensed under the EUPL, Version 1.2
+    You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
+    Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-->
+<local:AcrylicWindow x:Class="TrueStorageCheck_GUI.MainWindow"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" Closing="MainWindow_OnClosing" WindowStartupLocation="CenterScreen" 
+               xmlns:local="clr-namespace:TrueStorageCheck_GUI" WindowStyle="None" AllowsTransparency="True"
+               mc:Ignorable="d" MinHeight="603" MinWidth="700" Height="603" Width="700" MouseDown="MainWindow_OnMouseDown" Title="TrueStorageCheck GUI" Loaded="Window_Loaded" ResizeMode="CanMinimize" SizeChanged="MainWindow_OnSizeChanged" >
+    <WindowChrome.WindowChrome>
+        <WindowChrome ResizeBorderThickness="3" />
+    </WindowChrome.WindowChrome>
+    <Border>
+        <Grid >
+		    <Grid.RowDefinitions>
+                <RowDefinition Height="34" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="30" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="30" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="20" />
+                <RowDefinition Height="35" />
+            </Grid.RowDefinitions>
+
+            <!-- A bit QND :) -->
+            <Grid Name="WindowTitleGrid" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#30274C" >
+                <Border Margin="3 4 0 0" Height="28" Width="26" VerticalAlignment="Top" HorizontalAlignment="Left" CornerRadius="4" Background="#66FFFFFF" >
+                    <Image Source="{StaticResource iconDrawingImage}" Height="26" HorizontalAlignment="Left" VerticalAlignment="Top" MouseLeftButtonDown="BottomLabel_OnMouseLeftButtonDown" Cursor="Hand" />
+                </Border>
+                <Label VerticalAlignment="Center" Margin="26 0 0 0" Content="TrueStorageCheck GUI" Foreground="White" />
+                <Grid>
+                    <Grid.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#33EEEEEE" />
+                            <Setter Property="Foreground" Value="#CCC" />
+                            <Setter Property="TextBlock.TextAlignment" Value="Center" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button" >
+                                        <Border MinHeight="25" Padding="5" Margin="0" CornerRadius="0" 
+                                            Background="{TemplateBinding Background}" BorderBrush="Transparent" 
+                                            BorderThickness="0" >
+                                            <ContentPresenter x:Name="contentPresenter" 
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}" 
+                                                          Content="{TemplateBinding Content}" 
+                                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                          Margin="{TemplateBinding Padding}" 
+                                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#DDD" />
+                                    <Setter Property="Foreground" Value="#888" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#CCC" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Resources>
+                    <Button WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" Margin="0 0 36 0" Click="MinimizeButton_OnClick" ToolTip="Minimize" Content="−" FontWeight="Black" FontSize="14" Width="35" Height="34" />
+                </Grid>
+                <Grid>
+                    <Grid.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#33EEEEEE" />
+                            <Setter Property="Foreground" Value="#CCC" />
+                            <Setter Property="TextBlock.TextAlignment" Value="Center" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button" >
+                                        <Border MinHeight="25" Padding="5" Margin="0" CornerRadius="0" 
+                                            Background="{TemplateBinding Background}" BorderBrush="Transparent" 
+                                            BorderThickness="0" >
+                                            <ContentPresenter x:Name="contentPresenter" 
+                                                          ContentTemplate="{TemplateBinding ContentTemplate}" 
+                                                          Content="{TemplateBinding Content}" 
+                                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                          Margin="{TemplateBinding Padding}" 
+                                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="Red" />
+                                    <Setter Property="Foreground" Value="#FFF" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#CCC" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Resources>
+                    <Button WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" Margin="0" Click="CloseButton_OnClick" ToolTip="Close" Content="✖" Width="35" Height="34" />
+                </Grid>
+            </Grid>
+
+            <!-- Main content -->
+            <Grid Grid.Row="1" x:Name="MainGrid" Margin="10 10 10 2">
+                <TabControl x:Name="DeviceTestTabControl" SelectionChanged="TabControl_SelectionChanged" >
+                    <TabItem Margin="0" PreviewMouseLeftButtonDown="AddTabItem_MouseDown" Cursor="Hand" >
+                        <TabItem.Header>
+                            <Grid>
+                                <Label FontWeight="Black" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Background="Transparent">
+                                    ➕
+                                </Label>
+                            </Grid>
+                        </TabItem.Header>
+                        <TabItem.Content>
+                            <Grid Height="296" >
+                                <Label Content="⌛️" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="100" />
+                            </Grid>
+                        </TabItem.Content>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+
+            <!-- Navigation -->
+            <Grid x:Name="NavigationGrid" Grid.Row="2" Margin="10 0 10 0" VerticalAlignment="Top" HorizontalAlignment="Left" Height="18" IsEnabled="False" >
+                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                    <Button Width="30" x:Name="LeftButton" Content="◀️" VerticalContentAlignment="Top" Click="LeftButton_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0 0 4 0" />
+                    <Button  Width="30" x:Name="RightButton" Content="▶️" VerticalContentAlignment="Top" Click="RightButton_Click" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                </StackPanel>
+            </Grid>
+            
+            <!-- All in one -->
+            <!-- Multiple-device expander -->
+            <Grid Grid.Row="3" Margin="10 0 10 0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Multi device check -->
+                <Border x:Name="MultipleDeviceBorder" VerticalAlignment="Top" Padding="5" BorderThickness="1" BorderBrush="#CCC" Opacity="0.7" >
+                    <Expander Name="MultipleDeviceExpander" Header="{local:LocalizedString Key=multi_device}" Expanded="Expander_Changed" Collapsed="Expander_Changed" IsExpanded="False" >
+                        <Border BorderThickness="1" Margin="10" MinHeight="100" VerticalAlignment="Center" >
+                            <StackPanel Margin="10 0 10 0" VerticalAlignment="Center" >
+                                <Grid IsEnabled="False" Name="AllProgressGrid" HorizontalAlignment="Stretch" VerticalAlignment="Top" Visibility="Collapsed" >
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ProgressBar Name="ProgressBar" Maximum="100" Value="0" Height="23" HorizontalAlignment="Stretch" />
+                                    <Border x:Name="ProgressCompletionBorder" Margin="4" Grid.Column="1" BorderThickness="1" BorderBrush="Gray" Background="Gray" CornerRadius="4" Height="24" >
+                                        <Label Grid.Column="1" Name="ProgressCompletionLabel" Margin="-3" Foreground="White" Content="❔" />
+                                    </Border>
+                                </Grid>
+                                <Button IsEnabled="False" Name="StartAllButton" HorizontalAlignment="Stretch" Height="30"  Content="{local:LocalizedString Key=start_all}" Click="StartAllButton_Click" />
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+                </Border>
+
+                <!-- Log -->
+                <Border x:Name="LogExpanderBorder" Padding="5" Grid.Column="2" BorderThickness="1" BorderBrush="#CCC" Opacity="0.7" VerticalAlignment="Top" >
+                    <Expander Name="LogExpander"  Header="{local:LocalizedString Key=log}" Expanded="Expander_Changed" Collapsed="Expander_Changed"  >
+                        <StackPanel MinHeight="120">
+                            <TextBox Height="80" HorizontalAlignment="Stretch" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Margin="10 10 10 0" x:Name="LogTextBox" AcceptsReturn="True" IsReadOnly="True" FontSize="11" />
+                            <Button Margin="0 0 10 0"  Width="20" x:Name="ClearLogButton" ToolTip="{local:LocalizedString Key=clear_log}" Content="🧹" VerticalContentAlignment="Center" Click="ClearLogButton_Click" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                        </StackPanel>
+                    </Expander>
+                </Border>
+            </Grid>
+
+            <!-- Bottom Labels -->
+            <Label x:Name="UpdateLabel" Grid.Row="7" FontSize="{DynamicResource {x:Static SystemFonts.CaptionFontSize}}" Visibility="Collapsed" Foreground="{StaticResource UpdateColorBrush}" Margin="0 0 10 0" Content="{local:LocalizedString Key=new_update_available}" HorizontalAlignment="Right" Cursor="Hand" VerticalAlignment="Top" MouseLeftButtonDown="UpdateLabel_OnMouseLeftButtonDown" />
+            <CheckBox Margin="0 0 10 0" Grid.Row="8" x:Name="CheckForUpdatesCheckBox" Checked="CheckForUpdatesCheckBox_Checked" Unchecked="CheckForUpdatesCheckBox_Checked" Content="{local:LocalizedString Key=check_for_updates}" HorizontalAlignment="Right" VerticalAlignment="Bottom" >
+            </CheckBox>
+            <Label x:Name="BottomLabel"  Grid.Row="9" Cursor="Hand" MouseLeftButtonDown="BottomLabel_OnMouseLeftButtonDown" VerticalAlignment="Bottom" Margin="0 0 10 0" HorizontalAlignment="Right" Content="Well hello there fellow programmer!">
+                <Label.Style>
+                    <Style TargetType="Label">
+                        <Setter Property="Foreground" Value="{StaticResource WebSiteColorBrush}" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource WebSiteMouseOverColorBrush}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Label.Style>
+            </Label>
+            
+            <!-- Language selection -->
+            <Grid Grid.Row="9" VerticalAlignment="Center" Margin="10 0 0 0" >
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="120" />
+                </Grid.ColumnDefinitions>
+                <Label Content="🌐" />
+                <ComboBox Grid.Column="1" Name="LanguagesComboBox" Height="22" HorizontalAlignment="Stretch" SelectionChanged="LanguagesComboBox_SelectionChanged" />
+            </Grid>
+
+
+        </Grid>
+    </Border>
+</local:AcrylicWindow>

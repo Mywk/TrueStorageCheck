@@ -1,0 +1,560 @@
+﻿/* Copyright (C) 2023 - Mywk.Net
+ * Licensed under the EUPL, Version 1.2
+ * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
+ * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Resources;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Image = System.Drawing.Image;
+
+namespace TrueStorageCheck_GUI
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : AcrylicWindow
+    {
+        public static MainWindow Instance { get; private set; }
+
+        public const string DLL_STR = "TrueStorageCheck.dll";
+
+        // Import the C++ function
+        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetDevices([MarshalAs(UnmanagedType.I1)] bool includeLocalDisks, out IntPtr devices);
+        
+        // Device struct
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct DeviceInfo
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 261)]
+            public string path;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 261)]
+            public string name;
+
+            public char driveLetter;
+
+            public ulong capacity;
+        }
+
+        /// <summary>
+        /// Adds text to the log TextBox and scrolls to end afterwards
+        /// </summary>
+        /// <param name="text"></param>
+        public void AddLog(string text)
+        {
+            if (!string.IsNullOrEmpty(text))
+            {
+                const string newLine = "\r\n";
+
+                Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    LogTextBox.Text += (LogTextBox.Text.Length != 0 ? newLine : "") + DateTime.Now.ToString("[HH:mm ss] ") + text;
+                    LogTextBox.ScrollToEnd();
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Retrieves information about all connected media devices, with an option to include local disks
+        /// </summary>
+        /// <param name="includeLocal">A boolean value indicating whether to include local disks</param>
+        /// <returns>A List of Device objects representing the available media devices</returns>
+        public List<Device> GetMediaDevices(bool includeLocal)
+        {
+            // Convert the returned pointer to a List of DeviceInfo objects
+            List<Device> devices = new();
+
+            IntPtr deviceArrayPtr;
+            int deviceCount = GetDevices(includeLocal, out deviceArrayPtr);
+            AddLog("Got " + deviceCount + " devices.");
+
+            for (int i = 0; i < deviceCount; i++)
+            {
+                IntPtr currentPtr = IntPtr.Add(deviceArrayPtr, i * Marshal.SizeOf(typeof(DeviceInfo)));
+                DeviceInfo device = Marshal.PtrToStructure<DeviceInfo>(currentPtr);
+
+                // We ignore everything without a drive letter
+                if (device.driveLetter != '\0')
+                    devices.Add(new(device.name, device.path, device.driveLetter, device.capacity));
+
+                Console.WriteLine($"Device {i + 1}:");
+                Console.WriteLine($"Path: {device.path}");
+                Console.WriteLine($"Name: {device.name}");
+            }
+
+            return devices;
+        }
+
+
+        /// <summary>
+        /// Updates DeviceList
+        /// </summary>
+        /// <remarks>
+        /// Static for convenience
+        /// </remarks>
+        public void UpdateDevices(bool local)
+        {
+            var devices = GetMediaDevices(local);
+
+            Instance.Dispatcher.Invoke(() =>
+            {
+                // Instead of clearing and re-adding everything we will updating the devices
+
+                // Remove non-existing devices
+                for (int i = DeviceList.Count - 1; i >= 0; i--)
+                {
+                    var existingDevice = DeviceList[i];
+
+                    if (!devices.Any(d => d.Path == existingDevice.Path))
+                        DeviceList.RemoveAt(i);
+                }
+
+                foreach (var dev in devices)
+                {
+                    var existingDevice = DeviceList.FirstOrDefault(d => d.Path == dev.Path);
+                    if (existingDevice != null)
+                    {
+                        // Update existing device
+                        existingDevice.UpdateDevice(dev);
+                    }
+                    else
+                    {
+                        // Add new device
+                        DeviceList.Add(dev);
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// Single instance, so I'll leave this static
+        /// </summary>
+        public ObservableCollection<Device> DeviceList = new();
+
+        private ObservableCollection<Language> LanguageList = new();
+
+        public MainWindow()
+        {
+            Instance = this;
+
+            // Use language if the resource exists
+            LoadLanguageList();
+
+            // Attempt to load system language
+            var selectedLanguage = LanguageList.ToList().Find(l => l.Code.ToLower() == System.Threading.Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName.ToLower());
+
+            // Or the first if failed
+            if (selectedLanguage == null)
+                selectedLanguage = LanguagesComboBox.Items[0] as Language;
+
+            LoadLanguage(selectedLanguage);
+
+            InitializeComponent();
+            LanguagesComboBox.ItemsSource = LanguageList;
+
+            LanguagesComboBox.SelectedItem = selectedLanguage;
+            MainGrid.IsEnabled = false;
+        }
+
+        private bool _isLoaded = false;
+
+
+        // Used for language management, a bit QND
+        private const string resourceDefault = "TrueStorageCheck_GUI.Resources.language_";
+        public static ResourceManager LanguageResource;
+        
+        /// <summary>
+        /// Loads possible languages, this could be improved by iterating the resources and getting the language for each one
+        /// </summary>
+        public void LoadLanguageList()
+        {
+            LanguageList.Add(new Language("English", "en"));
+            LanguageList.Add(new Language("Deutsch", "de"));
+        }
+
+        public bool LoadLanguage(Language language)
+        {
+            // TODO: Use properties to define the default language
+            if(LanguageResource != null)
+                LanguageResource.ReleaseAllResources();
+
+            var ret = false;
+
+            try
+            {
+                LanguageResource = new ResourceManager(resourceDefault + language.Code, Assembly.GetExecutingAssembly());
+
+                var l = LanguageResource.GetString("language");
+                ret = l != null;
+            }
+            catch (Exception)
+            {
+                // Revert to English if not found
+                LanguageResource = new ResourceManager(resourceDefault + "en", Assembly.GetExecutingAssembly());
+            }
+
+            // Trigger the LanguageChanged event to update the localized strings
+            LocalizedStringExtension.OnLanguageChanged();
+
+            // QND stuf
+            if (DeviceTestTabControl != null)
+            {
+                foreach (var testUserControl in DeviceTestTabControl.Items)
+                {
+                    if (typeof(TestUserControl).Equals((testUserControl as TabItem).Content.GetType()))
+                    {
+                        var uc = (TestUserControl)(testUserControl as TabItem).Content;
+                        if (uc != null)
+                            uc.UpdateCurrentInfo();
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+
+        private void LanguagesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isLoaded && LanguagesComboBox.SelectedItem != null) return;
+
+            if (!LoadLanguage(LanguagesComboBox.SelectedItem as Language))
+                LanguagesComboBox.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// Load previous scan if available or scan if necessary
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            BottomLabel.Content = "TrueStorageCheck GUI  v" + version.Major + "." + version.Minor + " © " + DateTime.Now.Year + " - Mywk.Net";
+
+            // Check if DLL exists, exit otherwise
+            if (!File.Exists("TrueStorageCheck.dll"))
+            {
+                _ = Task.Run(() =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+
+                        MessageBox.Show(this, LanguageResource.GetString("dll_not_found_text"), LanguageResource.GetString("dll_not_found_title"), MessageBoxButton.OK);
+                        this.Close();
+
+                    });
+                });
+            }
+            else
+            {
+                if (Properties.Settings.Default.CheckForUpdates)
+                {
+                    CheckForUpdatesCheckBox.IsChecked = true;
+
+                    if(await CheckForUpdatesAsync())
+                        UpdateLabel.Visibility = Visibility.Visible;
+                }
+
+                AddNewDeviceTest();
+                DeviceTestTabControl.SelectedIndex = 0;
+
+                MainGrid.IsEnabled = true;
+                _isLoaded = true;
+
+                UpdateDevices(false);
+            }
+        }
+
+        /// <summary>
+        /// Self explanatory
+        /// </summary>
+        private bool isWorking = false;
+
+        /// <summary>
+        /// Check if a newer version of the software is available
+        /// </summary>
+        private async Task<bool> CheckForUpdatesAsync()
+        {
+            try
+            {
+                var web = new System.Net.Http.HttpClient();
+                var url = "https://Mywk.Net/software.php?assembly=" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
+                var responseString = (await web.GetAsync(url)).Content.ToString();
+
+                foreach (var str in responseString.Split('\n'))
+                {
+                    if (str.Contains("Version"))
+                    {
+                        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                        if (version.Major + "." + version.Minor != str.Split('=')[1])
+                            return true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+
+
+        /// <summary>
+        /// Utility method for converting a byte array to string
+        /// </summary>
+        /// <param name="ba"></param>
+        /// <returns></returns>
+        public static string ByteArrayToString(byte[] ba)
+        {
+            StringBuilder hex = new StringBuilder(ba.Length * 2);
+            foreach (byte b in ba)
+                hex.AppendFormat("{0:x2}", b);
+            return hex.ToString();
+        }
+
+
+
+        /// <summary>
+        /// Move window from anywhere
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainWindow_OnMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                this.DragMove();
+        }
+
+
+        /// <summary>
+        /// Open the website using the default browser
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BottomLabel_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var targetURL = "https://mywk.net/software/true-storage-check";
+            var psi = new ProcessStartInfo
+            {
+                FileName = targetURL,
+                UseShellExecute = true
+            };
+            Process.Start(psi);
+        }
+
+        private void UpdateLabel_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            BottomLabel_OnMouseLeftButtonDown(sender, e);
+        }
+
+        private void MainWindow_OnClosing(object sender, CancelEventArgs e)
+        {
+            if (isWorking)
+            {
+                if (MessageBox.Show(LanguageResource.GetString("closing_analyzing_confirm"), LanguageResource.GetString("warning"), MessageBoxButton.YesNo) == MessageBoxResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+        }
+
+        private void MinimizeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
+        }
+
+        private void CloseButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        private void MainWindow_OnSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (this.WindowState == WindowState.Maximized)
+            {
+                this.WindowState = WindowState.Normal;
+                e.Handled = true;
+            }
+        }
+
+        private bool updatingTabs = false;
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            NavigationGrid.IsEnabled = StartAllButton.IsEnabled = AllProgressGrid.IsEnabled = DeviceTestTabControl.Items.Count > 2;
+
+            if (!_isLoaded || updatingTabs) return;
+
+            updatingTabs = true;
+
+            // We don't create tabs on selection changed as it can interfer with CTRL-TAB, instead we redirect to the first tab if we have reached the insert tab
+            if (DeviceTestTabControl.SelectedIndex + 1 == DeviceTestTabControl.Items.Count)
+            {
+                DeviceTestTabControl.SelectedIndex = 0;
+            }
+
+            updatingTabs = false;
+        }
+
+        #region Navigation
+        private void LeftButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeviceTestTabControl.SelectedIndex - 1 >= 0)
+                DeviceTestTabControl.SelectedIndex--;
+            else
+                DeviceTestTabControl.SelectedIndex = DeviceTestTabControl.Items.Count - 2;
+        }
+
+        private void RightButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DeviceTestTabControl.SelectedIndex + 1 < DeviceTestTabControl.Items.Count)
+                DeviceTestTabControl.SelectedIndex++;
+        }
+        #endregion
+
+        /// <summary>
+        /// Creates a new tab with the TestUserControl
+        /// </summary>
+        private void AddNewDeviceTest()
+        {
+            if (DeviceTestTabControl.Items.Count > 10)
+                MessageBox.Show(this, LanguageResource.GetString("limit_reached"), LanguageResource.GetString("warning"), MessageBoxButton.OK);
+            else
+            {
+                var userControl = new TestUserControl();
+                var tabItem = new TabItem();
+
+                var headerStackPanel = new StackPanel() {  Orientation = Orientation.Vertical };
+
+                Label label = new() { DataContext = userControl };
+                label.SetBinding(Label.ContentProperty, new System.Windows.Data.Binding("TestName") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+
+                Label infoLabel = new() { DataContext = userControl };
+                infoLabel.SetBinding(Label.ContentProperty, new System.Windows.Data.Binding("CurrentInfo") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+
+                headerStackPanel.Children.Add(label);
+                headerStackPanel.Children.Add(infoLabel);
+
+                Button button = null;
+
+                if (DeviceTestTabControl.Items.Count > 1)
+                {
+                    button = new Button() { VerticalAlignment= VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Right, Content = "✖️", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkRed), Background = infoLabel.Background, Cursor = Cursors.Hand };
+
+                    button.Click += TabCloseButton_Click;
+                }
+                else
+                    // Ghost button, just so that the height doesn't change
+                    button = new Button() { Background = infoLabel.Background, IsHitTestVisible = false }; 
+
+                headerStackPanel.Children.Add(button);
+
+                tabItem.Header = headerStackPanel;
+                tabItem.Content = userControl;
+
+                DeviceTestTabControl.Items.Insert(DeviceTestTabControl.Items.Count - 1, tabItem);
+
+                updatingTabs = true;
+                DeviceTestTabControl.SelectedIndex = DeviceTestTabControl.Items.Count - 2;
+                updatingTabs = false;
+            }
+
+            UpdateHeight();
+        }
+
+        private void TabCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            // QND
+            var tabItem = DeviceTestTabControl.Items.OfType<TabItem>().SingleOrDefault(ti => ti.Header.Equals((sender as Button).Parent));
+
+            if(tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
+                DeviceTestTabControl.Items.Remove(tabItem);
+        }
+
+        private void AddTabItem_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                AddNewDeviceTest();
+                e.Handled = true;
+            }
+        }
+
+        private async void CheckForUpdatesCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_isLoaded) return;
+
+            var update = Properties.Settings.Default.CheckForUpdates = (bool)CheckForUpdatesCheckBox.IsChecked;
+            Properties.Settings.Default.Save();
+
+            if (update)
+                await CheckForUpdatesAsync();
+        }
+
+        private void StartAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Very QND, needs to be improved!!!
+            List<Device> testDevices = new();
+
+            foreach (var testUserControl in DeviceTestTabControl.Items)
+            {
+                if (typeof(TestUserControl).Equals((testUserControl as TabItem).Content.GetType()))
+                {
+                    var uc = (TestUserControl)(testUserControl as TabItem).Content;
+                    if (uc != null)
+                    {
+                        if (!testDevices.Any(td => td.DriveLetter == uc.LastSelectedDevice.DriveLetter || td.Path == uc.LastSelectedDevice.Path))
+                            uc.StartTest();
+                    }
+                }
+            }
+        }
+
+        private void ClearLogButton_Click(object sender, RoutedEventArgs e)
+        {
+            LogTextBox.Clear();
+        }
+
+        private async void Expander_Changed(object sender, RoutedEventArgs e)
+        {
+            MultipleDeviceBorder.Opacity = MultipleDeviceExpander.IsExpanded ? 1 : 0.7;
+            LogExpanderBorder.Opacity = LogExpander.IsExpanded ? 1 : 0.7;
+            UpdateHeight();
+
+            await Task.Delay(100);
+            _ = Dispatcher.BeginInvoke(new Action(LogTextBox.ScrollToEnd));
+        }
+
+        private void UpdateHeight()
+        {
+            // Queue a method call using the Dispatcher
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                double size = Math.Max(LogExpander.ActualHeight, MultipleDeviceExpander.ActualHeight);
+
+                this.Height = 195 + DeviceTestTabControl.ActualHeight + size;
+            }), DispatcherPriority.Render);
+        }
+    }
+}
