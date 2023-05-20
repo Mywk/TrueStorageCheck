@@ -69,7 +69,7 @@ namespace TrueStorageCheck_GUI
             base.OnApplyTemplate();
 
 
-            if (((App)App.Current).NoBlur)
+            if (App.NoBlur)
                 return;
             else
                 EnableBlurBehind();

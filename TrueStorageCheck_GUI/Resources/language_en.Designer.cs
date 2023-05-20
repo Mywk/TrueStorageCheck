@@ -61,6 +61,15 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Aborted.
+        /// </summary>
+        public static string aborted {
+            get {
+                return ResourceManager.GetString("aborted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to All available space.
         /// </summary>
         public static string all_available_place {
@@ -184,6 +193,15 @@ namespace TrueStorageCheck_GUI.Resources {
         public static string info {
             get {
                 return ResourceManager.GetString("info", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to en.
+        /// </summary>
+        public static string iso_code {
+            get {
+                return ResourceManager.GetString("iso_code", resourceCulture);
             }
         }
         

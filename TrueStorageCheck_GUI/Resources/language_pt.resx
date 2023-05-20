@@ -118,118 +118,118 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="aborted" xml:space="preserve">
-    <value>Aborted</value>
+    <value>Cancelado</value>
   </data>
   <data name="all_available_place" xml:space="preserve">
-    <value>All available space</value>
+    <value>Todo o espaço disponível</value>
   </data>
   <data name="avg_read" xml:space="preserve">
-    <value>Avg Read</value>
+    <value>Leitura Média</value>
   </data>
   <data name="avg_write" xml:space="preserve">
-    <value>Avg Write</value>
+    <value>Escrita Média</value>
   </data>
   <data name="check_for_updates" xml:space="preserve">
-    <value>Check for updates automatically</value>
+    <value>Verificar atualizações automaticamente</value>
   </data>
   <data name="clear_log" xml:space="preserve">
-    <value>Clear log</value>
+    <value>Limpar registo</value>
   </data>
   <data name="closing_analyzing_confirm" xml:space="preserve">
-    <value>You are currently analyzing a device, are you sure you want to stop and exit?</value>
+    <value>Há pelo menos um dispositivo a ser analisado. Cancelar e sair?</value>
   </data>
   <data name="current_state" xml:space="preserve">
-    <value>Current state</value>
+    <value>Estado atual</value>
   </data>
   <data name="device" xml:space="preserve">
-    <value>Device</value>
+    <value>Dispositivo</value>
   </data>
   <data name="device_test" xml:space="preserve">
-    <value>Device Test</value>
+    <value>Teste de Dispositivo</value>
   </data>
   <data name="dll_not_found_text" xml:space="preserve">
-    <value>The "TrueStorageCheck.dll" was not found.
-Make sure you downloaded and extracted all files correctly.</value>
+    <value>O ficheiro "TrueStorageCheck.dll" não foi encontrado.
+Certifique-se de que descarregou e extraiu todos os ficheiros corretamente.</value>
   </data>
   <data name="dll_not_found_title" xml:space="preserve">
     <value>Ops!</value>
   </data>
   <data name="error" xml:space="preserve">
-    <value>Error</value>
+    <value>Erro</value>
   </data>
   <data name="info" xml:space="preserve">
-    <value>Info</value>
+    <value>Informação</value>
   </data>
   <data name="in_progress" xml:space="preserve">
-    <value>In progress</value>
+    <value>Em progresso</value>
   </data>
   <data name="iso_code" xml:space="preserve">
-    <value>en</value>
+    <value>pt</value>
   </data>
   <data name="language" xml:space="preserve">
-    <value>English</value>
+    <value>Português</value>
   </data>
   <data name="last_successful_write" xml:space="preserve">
-    <value>Last successful write position</value>
+    <value>Última posição de escrita bem-sucedida</value>
   </data>
   <data name="limit_reached" xml:space="preserve">
-    <value>You've reached the limit of devices you can add.</value>
+    <value>Atingiu o limite de dispositivos que pode adicionar.</value>
   </data>
   <data name="local_disks" xml:space="preserve">
-    <value>Show local disks</value>
+    <value>Mostrar discos locais</value>
   </data>
   <data name="log" xml:space="preserve">
     <value>Log</value>
   </data>
   <data name="multi_device" xml:space="preserve">
-    <value>Multi-Device Check</value>
+    <value>Verificação Multi-Dispositivo</value>
   </data>
   <data name="new_update_available" xml:space="preserve">
-    <value>There is an update available.</value>
+    <value>Existe uma atualização disponível.</value>
   </data>
   <data name="options" xml:space="preserve">
-    <value>Options</value>
+    <value>Opções</value>
   </data>
   <data name="refresh" xml:space="preserve">
-    <value>Refresh</value>
+    <value>Atualizar</value>
   </data>
   <data name="remove_temporary_files" xml:space="preserve">
-    <value>Remove temporary files when finished</value>
+    <value>Remover ficheiros temporários quando concluído</value>
   </data>
   <data name="save_log_to_device" xml:space="preserve">
-    <value>Save text log to device</value>
+    <value>Guardar Log de texto no dispositivo</value>
   </data>
   <data name="start" xml:space="preserve">
-    <value>Start</value>
+    <value>Iniciar</value>
   </data>
   <data name="start_all" xml:space="preserve">
-    <value>Start all</value>
+    <value>Iniciar todos</value>
   </data>
   <data name="stats" xml:space="preserve">
-    <value>Stats</value>
+    <value>Estatísticas</value>
   </data>
   <data name="stop" xml:space="preserve">
-    <value>Stop</value>
+    <value>Cancelar</value>
   </data>
   <data name="stop_on_first_failure" xml:space="preserve">
-    <value>Stop on first failure</value>
+    <value>Parar no primeiro erro</value>
   </data>
   <data name="success" xml:space="preserve">
-    <value>Success</value>
+    <value>Sucesso</value>
   </data>
   <data name="test_result" xml:space="preserve">
-    <value>Test result:</value>
+    <value>Resultado do teste:</value>
   </data>
   <data name="verifying" xml:space="preserve">
-    <value>Verifying</value>
+    <value>A verificar</value>
   </data>
   <data name="waiting" xml:space="preserve">
-    <value>Waiting..</value>
+    <value>A aguardar..</value>
   </data>
   <data name="waiting_for_device" xml:space="preserve">
-    <value>Waiting for device selection..</value>
+    <value>A aguardar seleção do dispositivo..</value>
   </data>
   <data name="warning" xml:space="preserve">
-    <value>Warning</value>
+    <value>Aviso</value>
   </data>
 </root>

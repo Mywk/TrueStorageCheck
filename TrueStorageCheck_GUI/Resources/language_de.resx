@@ -117,6 +117,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="aborted" xml:space="preserve">
+    <value>Abgebrochen</value>
+  </data>
   <data name="all_available_place" xml:space="preserve">
     <value>gesamter freier Platz</value>
   </data>
@@ -159,6 +162,9 @@ Stellen Sie sicher, dass Sie alle Dateien korrekt heruntergeladen und extrahiert
   </data>
   <data name="in_progress" xml:space="preserve">
     <value>In Bearbeitung</value>
+  </data>
+  <data name="iso_code" xml:space="preserve">
+    <value>de</value>
   </data>
   <data name="language" xml:space="preserve">
     <value>Deutsch</value>

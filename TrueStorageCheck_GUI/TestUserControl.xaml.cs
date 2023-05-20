@@ -96,13 +96,15 @@ namespace TrueStorageCheck_GUI
             InProgress,
             Verifying,
             Success,
-            Error
+            Error,
+            Aborted
         }
 
         private CurrentState currentState = CurrentState.Waiting;
 
         private int progressPercentage = 0;
 
+        private const string newLine = "\r\n";
         private string GetStateStringFromCurrentState(CurrentState state)
         {
             switch (state)
@@ -117,6 +119,8 @@ namespace TrueStorageCheck_GUI
                     return MainWindow.LanguageResource.GetString("success");
                 case CurrentState.Error:
                     return MainWindow.LanguageResource.GetString("error");
+                case CurrentState.Aborted:
+                    return MainWindow.LanguageResource.GetString("aborted");
                 default:
                     return "";
             }
@@ -191,12 +195,10 @@ namespace TrueStorageCheck_GUI
 
                     ProgressBar.Value = progress;
 
-                    string infoStr = "";
+                    string infoStr = stateStr;
 
                     if (averageReadSpeed != 0 && averageWriteSpeed != 0)
-                        infoStr = averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s \r\n") + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s \r\n\r\n");
-
-                    infoStr += stateStr;
+                        infoStr += newLine + newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s" + newLine) + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s" + newLine + newLine);
 
                     InfoContentLabel.Content = infoStr;
 

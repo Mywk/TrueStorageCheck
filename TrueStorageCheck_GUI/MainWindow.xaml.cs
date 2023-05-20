@@ -37,7 +37,7 @@ namespace TrueStorageCheck_GUI
         // Import the C++ function
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetDevices([MarshalAs(UnmanagedType.I1)] bool includeLocalDisks, out IntPtr devices);
-        
+
         // Device struct
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct DeviceInfo
@@ -177,29 +177,45 @@ namespace TrueStorageCheck_GUI
 
 
         // Used for language management, a bit QND
-        private const string resourceDefault = "TrueStorageCheck_GUI.Resources.language_";
+        private const string resourceDefault = "TrueStorageCheck_GUI.Resources";
+        private const string resourceLanguage = resourceDefault + ".language_";
         public static ResourceManager LanguageResource;
-        
+
         /// <summary>
-        /// Loads possible languages, this could be improved by iterating the resources and getting the language for each one
+        /// Iterates resources and adds languages
         /// </summary>
         public void LoadLanguageList()
         {
-            LanguageList.Add(new Language("English", "en"));
-            LanguageList.Add(new Language("Deutsch", "de"));
+            // Get all the resources, iterate and add them as languages
+            string[] resourceNames = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+
+            foreach (string resourceName in resourceNames)
+            {
+                if (resourceName.Contains(resourceLanguage))
+                {
+                    ResourceManager rm = new ResourceManager(resourceName.Substring(0, resourceName.LastIndexOf('.')), Assembly.GetExecutingAssembly());
+
+                    var language = rm.GetString("language");
+                    var iso = rm.GetString("iso_code");
+
+                    // Iterate over each resource in the resource file, get language and iso_code and add them
+                    if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(iso))
+                        LanguageList.Add(new(language, iso));
+                }
+            }
         }
 
         public bool LoadLanguage(Language language)
         {
             // TODO: Use properties to define the default language
-            if(LanguageResource != null)
+            if (LanguageResource != null)
                 LanguageResource.ReleaseAllResources();
 
             var ret = false;
 
             try
             {
-                LanguageResource = new ResourceManager(resourceDefault + language.Code, Assembly.GetExecutingAssembly());
+                LanguageResource = new ResourceManager(resourceLanguage + language.Code, Assembly.GetExecutingAssembly());
 
                 var l = LanguageResource.GetString("language");
                 ret = l != null;
@@ -207,7 +223,7 @@ namespace TrueStorageCheck_GUI
             catch (Exception)
             {
                 // Revert to English if not found
-                LanguageResource = new ResourceManager(resourceDefault + "en", Assembly.GetExecutingAssembly());
+                LanguageResource = new ResourceManager(resourceLanguage + "en", Assembly.GetExecutingAssembly());
             }
 
             // Trigger the LanguageChanged event to update the localized strings
@@ -269,7 +285,7 @@ namespace TrueStorageCheck_GUI
                 {
                     CheckForUpdatesCheckBox.IsChecked = true;
 
-                    if(await CheckForUpdatesAsync())
+                    if (await CheckForUpdatesAsync())
                         UpdateLabel.Visibility = Visibility.Visible;
                 }
 
@@ -438,14 +454,14 @@ namespace TrueStorageCheck_GUI
         /// </summary>
         private void AddNewDeviceTest()
         {
-            if (DeviceTestTabControl.Items.Count > 10)
+            if (DeviceTestTabControl.Items.Count > 10 && !App.NoMaxDevices)
                 MessageBox.Show(this, LanguageResource.GetString("limit_reached"), LanguageResource.GetString("warning"), MessageBoxButton.OK);
             else
             {
                 var userControl = new TestUserControl();
                 var tabItem = new TabItem();
 
-                var headerStackPanel = new StackPanel() {  Orientation = Orientation.Vertical };
+                var headerStackPanel = new StackPanel() { Orientation = Orientation.Vertical };
 
                 Label label = new() { DataContext = userControl };
                 label.SetBinding(Label.ContentProperty, new System.Windows.Data.Binding("TestName") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
@@ -460,13 +476,13 @@ namespace TrueStorageCheck_GUI
 
                 if (DeviceTestTabControl.Items.Count > 1)
                 {
-                    button = new Button() { VerticalAlignment= VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Right, Content = "✖️", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkRed), Background = infoLabel.Background, Cursor = Cursors.Hand };
+                    button = new Button() { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Right, Content = "✖️", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkRed), Background = infoLabel.Background, Cursor = Cursors.Hand };
 
                     button.Click += TabCloseButton_Click;
                 }
                 else
                     // Ghost button, just so that the height doesn't change
-                    button = new Button() { Background = infoLabel.Background, IsHitTestVisible = false }; 
+                    button = new Button() { Background = infoLabel.Background, IsHitTestVisible = false };
 
                 headerStackPanel.Children.Add(button);
 
@@ -488,7 +504,7 @@ namespace TrueStorageCheck_GUI
             // QND
             var tabItem = DeviceTestTabControl.Items.OfType<TabItem>().SingleOrDefault(ti => ti.Header.Equals((sender as Button).Parent));
 
-            if(tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
+            if (tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
                 DeviceTestTabControl.Items.Remove(tabItem);
         }
 

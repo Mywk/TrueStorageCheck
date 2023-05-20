@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 - Mywk.Net
+/* Copyright (C) 2023 - Mywk.Net
  * Licensed under the EUPL, Version 1.2
  * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -226,8 +226,11 @@ bool DiskTest::PerformTest()
 		this->RemoveDirectory(Path + tempDirectoryPath);
 	}
 
+	if (CurrentState != State_Aborted)
+		CurrentState = ret ? State_Success : State_Error;
+
 	if (ProgressCallback != NULL)
-		ProgressCallback(this, ret ? (int)State_Success : (int)State_Error, CurrentProgress, MbWritten);
+		ProgressCallback(this, CurrentState, CurrentProgress, MbWritten);
 
 	TestRunning = false;
 
@@ -250,6 +253,7 @@ bool DiskTest::VerifyTestFile(const std::string& filePath)
 	}
 
 	unsigned long long totalBytesToRead = fileSize.QuadPart;
+	unsigned long long originalTotalBytesToRead = totalBytesToRead;
 	unsigned long offset = 0;
 	int segment = 0;
 
@@ -280,6 +284,12 @@ bool DiskTest::VerifyTestFile(const std::string& filePath)
 		totalBytesToRead -= chunkSize;
 		offset += chunkSize;
 		segment++;
+
+		// Update progress, it starts at 50 and goes up to 100
+		// TODO: Adjust this, verification is usually faster so it doens't truly reflect the progress in terms of speed
+		CurrentProgress = 50 + (50 * (originalTotalBytesToRead - totalBytesToRead) / originalTotalBytesToRead);
+		if (ProgressCallback != NULL)
+			ProgressCallback(this, (int)State_Verification, CurrentProgress, 0);
 	}
 
 	::CloseHandle(hFile);
@@ -299,6 +309,7 @@ bool DiskTest::ForceStopTest()
 	// Force stop if it's running
 	if (TestRunning)
 	{
+		CurrentState = State_Aborted;
 		TestRunning = false;
 		return true;
 	}
@@ -475,8 +486,9 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 		AverageReadSpeed = AverageReadSpeed == 0 ? avgReadSpeed : ((AverageReadSpeed + avgReadSpeed) / 2);
 
 		LastSuccessfulVerifyPosition += bytesWritten;
-		CurrentProgress = (LastSuccessfulVerifyPosition * 100) / this->CapacityToTest;
 
+		// 50 because we write and verify
+		CurrentProgress = (LastSuccessfulVerifyPosition * 50) / this->CapacityToTest;
 
 
 		// Prevent spamming whatever is our callback

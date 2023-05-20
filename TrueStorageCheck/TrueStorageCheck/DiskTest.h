@@ -73,13 +73,17 @@ public:
 	/// <returns>disk full state</returns>
 	bool IsDriveFull();
 
+	/// <summary>
+	/// Return states
+	/// </summary>
 	enum State
 	{
 		State_Waiting = 0,
-		State_InProgress = 1,
-		State_Verification = 2,
-		State_Success = 3,
-		State_Error = 4
+		State_InProgress,
+		State_Verification,
+		State_Success,
+		State_Error,
+		State_Aborted
 	};
 
 private:

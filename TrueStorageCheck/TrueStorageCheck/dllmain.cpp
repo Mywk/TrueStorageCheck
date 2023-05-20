@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 - Mywk.Net
+/* Copyright (C) 2023 - Mywk.Net
  * Licensed under the EUPL, Version 1.2
  * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

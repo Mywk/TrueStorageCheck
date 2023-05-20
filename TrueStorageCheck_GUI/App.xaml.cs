@@ -24,14 +24,19 @@ namespace TrueStorageCheck_GUI
         /// <summary>
         /// This property can be used to find out if the current window is using the dark theme
         /// </summary>
-        public bool IsDarkTheme { get; set; } = false;
+        public static bool IsDarkTheme { get; set; } = false;
 
         /// <summary>
         /// This property can be used to force NoBlur
         /// </summary>
-        public bool NoBlur { get; set; } = false;
+        public static bool NoBlur { get; set; } = false;
 
-        Mutex mutex = new System.Threading.Mutex(false, "ae62f337-ff1c-4b8e-87ad-c385bbe3436a");
+        /// <summary>
+        /// Ignore max devices limit
+        /// </summary>
+        public static bool NoMaxDevices { get; set; } = false;
+
+        Mutex mutex = new System.Threading.Mutex(false, "f3799441-170a-4174-bd8d-15b727d2ebc0");
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -68,6 +73,8 @@ namespace TrueStorageCheck_GUI
                             IsDarkTheme = true;
                         else if (arg.ToLowerInvariant().Contains("light"))
                             IsDarkTheme = false;
+                        else if (arg.ToLowerInvariant().Contains("nomaxdevices"))
+                            NoMaxDevices = true;
                         else if (arg.ToLowerInvariant().Contains("noacryl") || arg.ToLowerInvariant().Contains("noblur"))
                             NoBlur = true;
                     }
