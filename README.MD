@@ -9,14 +9,13 @@ TrueStorageCheck works similarly to H2testw with some key improvements - it is a
 - Support for various storage media: SD cards, internal hard drives, USB sticks, memory sticks, etc..
 - Multi-device testing: Capable of verifying multiple storage devices simultaneously
 - Fast error detection: The test stops as soon as a validation error is detected
-- Lightweight and portable
+- Lightweight and portable (no installation required)
 - Simple to use: Clear and intuitive user interface (I hope, suggestions are always welcome)
 - Multilanguage (feel free to add your own)
 
 ## TODO
 
 - Log files
-- Time remaining
 - Multi-threaded data generation
 - Check if drive is empty before testing (GUI)
 - CLI
