@@ -74,6 +74,14 @@ public:
 	bool IsDriveFull();
 
 	/// <summary>
+	/// Gets the remaining time in seconds
+	/// </summary>
+	/// <remarks>
+	/// This is just an estimate
+	/// </remarks>
+	unsigned long GetTimeRemaining();
+
+	/// <summary>
 	/// Return states
 	/// </summary>
 	enum State
@@ -103,15 +111,18 @@ private:
 
 	unsigned long long DataBlockSize;
 
-	double AverageReadSpeed;
-	double AverageWriteSpeed;
-
 	unsigned long long CurrentFileSize;
 	std::vector<std::string> CreatedFiles;
 
 	State CurrentState;
+
 	int CurrentProgress;
 	int MbWritten;
+	int MbToVerify;
+	int MbVerified;
+
+	double AverageReadSpeed;
+	double AverageWriteSpeed;
 
 	bool TestRunning;
 
@@ -197,5 +208,10 @@ private:
 	/// </summary>
 	/// <param name="path">Path</param>
 	unsigned long GetFileSize(const std::string& path);
+
+	/// <summary>
+	/// Used to updated CurrentProgress, MbWritten, MbToVerify values
+	/// </summary>
+	void CalculateProgress();
 
 };

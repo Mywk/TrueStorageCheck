@@ -19,10 +19,10 @@
 #include <chrono>
 
 // For now we will always test in this block size, we write 256MB at a time
-const int DATA_WRITE_SIZE = 256 * (1024 * 1024);
+const unsigned long long DATA_WRITE_SIZE = 256 * (1024 * 1024);
 
 // This is the maximum amount of random data we generate at a time
-const int MAX_RAND_DATA_SIZE = 16 * (1024 * 1024);
+const unsigned long long MAX_RAND_DATA_SIZE = 16 * (1024 * 1024);
 
 #define up "This should never be the C drive."
 
@@ -46,6 +46,7 @@ DiskTest::DiskTest(char driveLetter, unsigned long long capacityToTest, bool sto
 	CurrentProgress = 0;
 
 	AverageReadSpeed = AverageWriteSpeed = 0;
+	MbVerified = 0;
 }
 
 void DiskTest::GenerateData(std::vector<unsigned char>& data, const std::string& seed)
@@ -99,6 +100,23 @@ unsigned long DiskTest::GetFileSize(const std::string& filePath)
 	return static_cast<unsigned long>(fileSize.QuadPart);
 }
 
+void DiskTest::CalculateProgress() {
+
+	if (MbWritten == 0)
+		CurrentProgress = 0;
+	else
+	{
+		unsigned long long capacityToTestMb = CapacityToTest / (1024 * 1024);
+
+		// Calculate the total data processed (MbWritten + MbVerified) and total data to process (CapacityToTestMb + MbToVerify)
+		int totalDataProcessed = MbWritten + MbVerified;
+		unsigned long long totalDataToProcess = capacityToTestMb + MbToVerify;
+
+		// Cast totalDataProcessed to double before the division, argh
+		CurrentProgress = static_cast<int>((static_cast<double>(totalDataProcessed) / totalDataToProcess) * 100);
+	}
+
+}
 
 bool DiskTest::PerformTest()
 {
@@ -134,15 +152,22 @@ bool DiskTest::PerformTest()
 	if (DataBlockSize == 0)
 		return false;
 
-	if (this->CapacityToTest == 0)
-		this->CapacityToTest = freeSpace;
+	if (CapacityToTest == 0)
+		CapacityToTest = freeSpace;
 
-	int size = this->CapacityToTest < DATA_WRITE_SIZE ? this->CapacityToTest : DATA_WRITE_SIZE;
+
+
+	// Calculate data to verify
+	// It is simply the CapacityToTest if we don't verify the data while writting
+	// Otherwise it's APROXIMATELY twice the capacity, plus extraVerificationSize, hope I didn't mess up this calculation again
+	unsigned long long extraVerificationSize = floor(CapacityToTest / DATA_WRITE_SIZE) * (DATA_WRITE_SIZE / MAX_RAND_DATA_SIZE) * DataBlockSize;
+	MbToVerify = StopOnFirstError ? ((CapacityToTest * 3) + extraVerificationSize) / (1024 * 1024) : CapacityToTest;
+
 
 	unsigned long long totalDataWritten = 0;
-	unsigned long long totalDataToWrite = this->CapacityToTest;
+	unsigned long long totalDataToWrite = CapacityToTest;
 
-	unsigned long long dataLeftToWrite = this->CapacityToTest;
+	unsigned long long dataLeftToWrite = CapacityToTest;
 
 	if (freeSpace < totalDataToWrite)
 		return false;
@@ -151,6 +176,8 @@ bool DiskTest::PerformTest()
 		ProgressCallback(this, (int)State_InProgress, CurrentProgress, MbWritten);
 
 	bool ret = true;
+
+	int size = this->CapacityToTest < DATA_WRITE_SIZE ? this->CapacityToTest : DATA_WRITE_SIZE;
 
 	while (!IsDriveFull() && TestRunning && (totalDataWritten < totalDataToWrite))
 	{
@@ -185,15 +212,12 @@ bool DiskTest::PerformTest()
 		dataLeftToWrite -= size;
 
 		MbWritten = totalDataWritten / (1024 * 1024);
-		CurrentProgress = (totalDataWritten * 100) / totalDataToWrite;
-
 		LastSuccessfulVerifyPosition = totalDataWritten;
 
-		if (ProgressCallback != NULL)
-		{
-			ProgressCallback(this, (int)State_InProgress, CurrentProgress, MbWritten);
-		}
+		CalculateProgress();
 
+		if (ProgressCallback != NULL)
+			ProgressCallback(this, (int)State_InProgress, CurrentProgress, MbWritten);
 	}
 
 	// Perform final verification
@@ -281,13 +305,16 @@ bool DiskTest::VerifyTestFile(const std::string& filePath)
 			return false;
 		}
 
+		LastSuccessfulVerifyPosition = offset;
+
+		MbVerified += chunkSize / (1024 * 1024);
+
 		totalBytesToRead -= chunkSize;
 		offset += chunkSize;
 		segment++;
 
-		// Update progress, it starts at 50 and goes up to 100
-		// TODO: Adjust this, verification is usually faster so it doens't truly reflect the progress in terms of speed
-		CurrentProgress = 50 + (50 * (originalTotalBytesToRead - totalBytesToRead) / originalTotalBytesToRead);
+		// Update progress 
+		CalculateProgress();
 		if (ProgressCallback != NULL)
 			ProgressCallback(this, (int)State_Verification, CurrentProgress, 0);
 	}
@@ -461,7 +488,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			LONG zero = 0;
 			::SetFilePointer(hFile, zero, &zero, FILE_BEGIN);
 
-			// Re-read and verify the first data
+			// Re-read and verify the first written data
 			if (!ReadAndVerifyData(hFile, firstGeneratedData, chunkSize, 0, totalReadDuration))
 				break;
 
@@ -469,6 +496,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			::SetFilePointer(hFile, currentLowPart, &currentHighPart, FILE_BEGIN);
 
 			MbWritten = LastSuccessfulVerifyPosition / (1024 * 1024);
+			MbVerified += bytesWritten / (1024 * 1024);
 		}
 		else
 			MbWritten += bytesWritten;
@@ -487,9 +515,8 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 
 		LastSuccessfulVerifyPosition += bytesWritten;
 
-		// 50 because we write and verify
-		CurrentProgress = (LastSuccessfulVerifyPosition * 50) / this->CapacityToTest;
-
+		// Calculate progress
+		CalculateProgress();
 
 		// Prevent spamming whatever is our callback
 		if (operationCounter > 50)
@@ -549,6 +576,19 @@ bool DiskTest::IsDriveFull()
 		return true;
 
 	return false;
+}
+
+unsigned long DiskTest::GetTimeRemaining()
+{
+	// Note: We can't just assume the read/write times are roughly equal, they almost never are,
+	// especially in fake devices, so we need to calculate seperately and then add them together
+
+
+	// Calculate remaining time for writing and reading separately, then sum
+	int timeRemainingForWritingSec = AverageWriteSpeed == 0 ?  0 : ((CapacityToTest / (1024 * 1024)) - MbWritten) / AverageWriteSpeed;
+	int timeRemainingForReadingSec = AverageReadSpeed == 0 ? 0 : (MbToVerify - MbVerified) / AverageReadSpeed;
+
+	return timeRemainingForWritingSec + timeRemainingForReadingSec;
 }
 
 //bool DiskTest::DeleteTestFile(const std::string& filePath)

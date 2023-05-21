@@ -287,6 +287,15 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Remaining time.
+        /// </summary>
+        public static string remaining_time {
+            get {
+                return ResourceManager.GetString("remaining_time", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Remove temporary files when finished.
         /// </summary>
         public static string remove_temporary_files {

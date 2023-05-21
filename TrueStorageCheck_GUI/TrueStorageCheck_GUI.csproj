@@ -9,8 +9,9 @@
     <Platforms>AnyCPU;x64;x86</Platforms>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <PackageIcon>icon.png</PackageIcon>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <AssemblyVersion></AssemblyVersion>
+    <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -62,6 +63,9 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>language_en.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <EmbeddedResource Update="Resources\language_es.resx">
+      <Generator>MSBuild:Compile</Generator>
+    </EmbeddedResource>
     <EmbeddedResource Update="Resources\language_pt.resx">
       <Generator>MSBuild:Compile</Generator>
     </EmbeddedResource>
@@ -78,7 +82,7 @@
     </None>
   </ItemGroup>
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="del &quot;$(TargetDir)TrueStorageCheck.dll&quot;&#xD;&#xA;echo f | xcopy /f /y &quot;$(SolutionDir)x64\Debug\TrueStorageCheck.dll&quot; &quot;$(TargetDir)TrueStorageCheck.dll&quot;" />
   </Target>
 

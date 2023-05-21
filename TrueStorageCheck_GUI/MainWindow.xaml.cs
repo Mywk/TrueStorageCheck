@@ -466,28 +466,37 @@ namespace TrueStorageCheck_GUI
                 Label label = new() { DataContext = userControl };
                 label.SetBinding(Label.ContentProperty, new System.Windows.Data.Binding("TestName") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
 
+                StackPanel infoStackPanel = new() { Orientation = Orientation.Horizontal };
+
+                Label statLabel = new Label() { Content = "●", FontSize = 20, DataContext = userControl, VerticalAlignment = VerticalAlignment.Top, Padding = new(0) };
+                statLabel.SetBinding(Label.ForegroundProperty, new System.Windows.Data.Binding("HeaderBackground") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+
                 Label infoLabel = new() { DataContext = userControl };
                 infoLabel.SetBinding(Label.ContentProperty, new System.Windows.Data.Binding("CurrentInfo") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
 
-                headerStackPanel.Children.Add(label);
-                headerStackPanel.Children.Add(infoLabel);
+                infoStackPanel.Children.Add(statLabel);
+                infoStackPanel.Children.Add(infoLabel);
 
-                Button button = null;
+                headerStackPanel.Children.Add(label);
+                headerStackPanel.Children.Add(infoStackPanel);
+
+                Button closeButton = null;
 
                 if (DeviceTestTabControl.Items.Count > 1)
                 {
-                    button = new Button() { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Right, Content = "✖️", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkRed), Background = infoLabel.Background, Cursor = Cursors.Hand };
+                    closeButton = new Button() { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Right, Content = "✖️", Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkRed), Background = infoLabel.Background, Cursor = Cursors.Hand };
 
-                    button.Click += TabCloseButton_Click;
+                    closeButton.Click += TabCloseButton_Click;
                 }
                 else
                     // Ghost button, just so that the height doesn't change
-                    button = new Button() { Background = infoLabel.Background, IsHitTestVisible = false };
+                    closeButton = new Button() { Background = infoLabel.Background, IsHitTestVisible = false };
 
-                headerStackPanel.Children.Add(button);
+                headerStackPanel.Children.Add(closeButton);
 
                 tabItem.Header = headerStackPanel;
                 tabItem.Content = userControl;
+
 
                 DeviceTestTabControl.Items.Insert(DeviceTestTabControl.Items.Count - 1, tabItem);
 
@@ -504,7 +513,7 @@ namespace TrueStorageCheck_GUI
             // QND
             var tabItem = DeviceTestTabControl.Items.OfType<TabItem>().SingleOrDefault(ti => ti.Header.Equals((sender as Button).Parent));
 
-            if (tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
+            if (tabItem != null && tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
                 DeviceTestTabControl.Items.Remove(tabItem);
         }
 

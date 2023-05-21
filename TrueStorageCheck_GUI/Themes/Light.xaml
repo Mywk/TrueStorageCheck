@@ -7,6 +7,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <SolidColorBrush x:Key="HeaderColorBrush">#291A5B</SolidColorBrush>
+    
     <SolidColorBrush x:Key="WebSiteMouseOverColorBrush">#291A5B</SolidColorBrush>
     <SolidColorBrush x:Key="WebSiteColorBrush">#40298E</SolidColorBrush>
     <SolidColorBrush x:Key="UpdateColorBrush">#623FDA</SolidColorBrush>

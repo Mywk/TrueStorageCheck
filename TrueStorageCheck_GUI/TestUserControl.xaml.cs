@@ -58,9 +58,12 @@ namespace TrueStorageCheck_GUI
         static extern double DiskTest_GetAverageWriteSpeed(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern double DiskTest_GetAverageReadSpeed(IntPtr diskTestInstance);
+        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
+        static extern long DiskTest_GetTimeRemaining(IntPtr diskTestInstance);
 
         private string _testName;
         private string _currentInfo;
+        private SolidColorBrush _headerBackground;
 
         public string TestName
         {
@@ -84,6 +87,19 @@ namespace TrueStorageCheck_GUI
                 {
                     _currentInfo = value;
                     OnPropertyChanged("CurrentInfo");
+                }
+            }
+        }
+        
+        public SolidColorBrush HeaderBackground
+        {
+            get { return _headerBackground; }
+            set
+            {
+                if (_headerBackground != value)
+                {
+                    _headerBackground = value;
+                    OnPropertyChanged("HeaderBackground");
                 }
             }
         }
@@ -185,8 +201,10 @@ namespace TrueStorageCheck_GUI
             {
                 double averageReadSpeed = DiskTest_GetAverageReadSpeed(instance);
                 double averageWriteSpeed = DiskTest_GetAverageWriteSpeed(instance);
+                double remainingTimeInSeconds = (CurrentState)state == CurrentState.InProgress || (CurrentState)state == CurrentState.Verifying ? DiskTest_GetTimeRemaining(instance) : 0;
 
-                Dispatcher.Invoke(() => {
+                Dispatcher.Invoke(() =>
+                {
 
                     string stateStr = MainWindow.LanguageResource.GetString("current_state") + ":\t" + GetStateStringFromCurrentState((CurrentState)state);
 
@@ -200,6 +218,15 @@ namespace TrueStorageCheck_GUI
                     if (averageReadSpeed != 0 && averageWriteSpeed != 0)
                         infoStr += newLine + newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s" + newLine) + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s" + newLine + newLine);
 
+
+                    if (remainingTimeInSeconds != 0)
+                    {
+                        TimeSpan delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
+                        string formattedTime = string.Format("{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
+
+                        infoStr += formattedTime;
+                    }
+
                     InfoContentLabel.Content = infoStr;
 
                     currentState = (CurrentState)state;
@@ -209,7 +236,7 @@ namespace TrueStorageCheck_GUI
                         SetCompletionLabel(CompletionStatus.Success);
                         UpdateCurrentInfo();
                     }
-                    else if (state == (int)CurrentState.Error)
+                    else if (state == (int)CurrentState.Error || state == (int)CurrentState.Aborted)
                     {
                         SetCompletionLabel(CompletionStatus.Failed);
                         UpdateCurrentInfo();
@@ -232,8 +259,6 @@ namespace TrueStorageCheck_GUI
                 DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, progressHandler);
 
                 bool startResult = DiskTest_PerformTest(DiskTest);
-
-                // TODO: Get stats and write them 
 
                 if (!startResult)
                 {
@@ -270,6 +295,7 @@ namespace TrueStorageCheck_GUI
 
             TestName = MainWindow.LanguageResource.GetString("device_test");
             CurrentInfo = MainWindow.LanguageResource.GetString("waiting");
+            HeaderBackground = (SolidColorBrush)Application.Current.Resources["HeaderColorBrush"];
 
             Binding binding = new Binding();
             binding.Source = MainWindow.Instance.DeviceList;
@@ -285,10 +311,10 @@ namespace TrueStorageCheck_GUI
             UpdateDeviceSourceList();
 
             // Re-select last selected device if still available
-            if(LastSelectedDevice != null && MainWindow.Instance.DeviceList.Count > 0)
+            if (LastSelectedDevice != null && MainWindow.Instance.DeviceList.Count > 0)
             {
                 var dev = MainWindow.Instance.DeviceList.ToList().Find(d => d.Path == LastSelectedDevice.Path);
-                if(dev != null)
+                if (dev != null)
                     DevicesComboBox.SelectedItem = LastSelectedDevice = dev;
             }
         }
@@ -409,6 +435,9 @@ namespace TrueStorageCheck_GUI
             StartTest();
         }
 
+        /// <summary>
+        /// Used to update the progress completion bar & label
+        /// </summary>
         internal enum CompletionStatus
         {
             Unknown,
@@ -440,9 +469,9 @@ namespace TrueStorageCheck_GUI
                     break;
             }
 
-            ProgressBar.Foreground = new SolidColorBrush(color);
+            ProgressBar.Foreground = HeaderBackground = new SolidColorBrush(color);
 
-            ProgressCompletionBorder.Background =  new SolidColorBrush(color);
+            ProgressCompletionBorder.Background = new SolidColorBrush(color);
             ProgressCompletionLabel.Content = text;
         }
 
@@ -465,7 +494,7 @@ namespace TrueStorageCheck_GUI
         {
             if (LastSelectedDevice == null) return;
 
-            if(MbNumericUpDown.Value != 0)
+            if (MbNumericUpDown.Value != 0)
                 AllAvailableSpaceCheckBox.IsChecked = (bool)(MbNumericUpDown.Value == MbNumericUpDown.Maximum);
         }
     }

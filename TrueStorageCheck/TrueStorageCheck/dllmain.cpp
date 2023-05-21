@@ -156,6 +156,7 @@ EXPORT_C int DiskTest_GetTestProgress(DiskTest * instance) WRAP(instance->GetTes
 EXPORT_C int DiskTest_GetLastSuccessfulVerifyPosition(DiskTest * instance) WRAP(instance->GetLastSuccessfulVerifyPosition())
 EXPORT_C double DiskTest_GetAverageWriteSpeed(DiskTest* instance) WRAP(instance->GetAverageWriteSpeed())
 EXPORT_C double DiskTest_GetAverageReadSpeed(DiskTest* instance) WRAP(instance->GetAverageReadSpeed())
+EXPORT_C long DiskTest_GetTimeRemaining(DiskTest* instance) WRAP(instance->GetTimeRemaining())
 
 
 #pragma endregion
