@@ -256,6 +256,16 @@ namespace TrueStorageCheck_GUI
 
             _ = Task.Run(() =>
             {
+                // Just in case
+                if (DiskTest != IntPtr.Zero)
+                {
+                    if (DiskTest_ForceStopTest(DiskTest))
+                        DiskTest = IntPtr.Zero;
+                    else
+                        return;
+                }
+
+
                 DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, progressHandler);
 
                 bool startResult = DiskTest_PerformTest(DiskTest);

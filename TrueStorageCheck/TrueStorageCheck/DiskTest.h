@@ -104,10 +104,7 @@ private:
 
 	ProgressDelegate ProgressCallback;
 
-	unsigned long long LastSuccessfulVerifyPosition;
-
 	unsigned long long MaxCapacity;
-	unsigned long long CapacityToTest;
 
 	unsigned long long DataBlockSize;
 
@@ -117,9 +114,14 @@ private:
 	State CurrentState;
 
 	int CurrentProgress;
-	int MbWritten;
-	int MbToVerify;
-	int MbVerified;
+
+	unsigned long long CapacityToTest;
+	unsigned long long BytesWritten;
+	unsigned long long BytesToVerify;
+	unsigned long long BytesVerified;
+
+	double TotalWriteDuration;
+	double TotalReadDuration;
 
 	double AverageReadSpeed;
 	double AverageWriteSpeed;
@@ -136,15 +138,20 @@ private:
 	unsigned long WriteAndVerifyTestFile(const std::string& filePath, unsigned long long fileSize, bool failOnFirst);
 
 	/// <summary>
+	/// Call to update average read/write speeds using the data available
+	/// </summary>
+	void RecalculateAverageSpeeds();
+
+	/// <summary>
 	/// Used to verify a written file
 	/// </summary>
 	/// <param name="hFile">File handle</param>
 	/// <param name="generatedData">A reference to the vector of generated data to verify against</param>
-	/// <param name="bytesWritten">Length of bytes to read and verify</param>
+	/// <param name="sizeToReader">Length of bytes to read and verify</param>
 	/// <param name="offset">The offset into the generated data buffer to begin verification</param>
 	/// <param name="totalReadDuration">A reference to a double that accumulates the total read duration</param>
 	/// <returns>True if the read and verification was ok</returns>
-	bool ReadAndVerifyData(HANDLE hFile, const std::vector<unsigned char>& generatedData, DWORD bytesWritten, unsigned long offset, double& totalReadDuration);
+	bool ReadAndVerifyData(HANDLE hFile, const std::vector<unsigned char>& generatedData, unsigned long sizeToRead, unsigned long offset, double& totalReadDuration);
 
 	/// <summary>
 	/// Generates a unique test file name
