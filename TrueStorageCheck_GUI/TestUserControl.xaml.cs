@@ -156,6 +156,8 @@ namespace TrueStorageCheck_GUI
         // Keep track of the last selected device
         public Device LastSelectedDevice { get; set; }
 
+        DateTime TestStartedTime;
+
         /// <summary>
         /// Starts the device test
         /// </summary>
@@ -168,7 +170,7 @@ namespace TrueStorageCheck_GUI
                     _ = Task.Run(() =>
                     {
                         // Force stop the test
-                        MainWindow.Instance.AddLog("Forced test stop.");
+                        MainWindow.Instance.AddLog(this, "Forced test stop.");
 
                         if (DiskTest_ForceStopTest(DiskTest))
                         {
@@ -189,6 +191,8 @@ namespace TrueStorageCheck_GUI
 
             IsWorking = true;
 
+            TestStartedTime = DateTime.Now;
+
             ToggleInteration(false);
 
             StartButton.Content = MainWindow.LanguageResource.GetString("stop");
@@ -197,33 +201,40 @@ namespace TrueStorageCheck_GUI
             ProgressBar.Value = 0;
 
             // Create a progress delegate that reports progress to the console
-            ProgressDelegate progressHandler = (instance, state, progress, mbWritten) =>
+            ProgressDelegate progressHandler = (instance, state, progress, mbChanged) =>
             {
+                double remainingTimeInSeconds = (CurrentState)state == CurrentState.InProgress || (CurrentState)state == CurrentState.Verifying ? DiskTest_GetTimeRemaining(instance) : 0;
+
                 double averageReadSpeed = DiskTest_GetAverageReadSpeed(instance);
                 double averageWriteSpeed = DiskTest_GetAverageWriteSpeed(instance);
-                double remainingTimeInSeconds = (CurrentState)state == CurrentState.InProgress || (CurrentState)state == CurrentState.Verifying ? DiskTest_GetTimeRemaining(instance) : 0;
 
                 Dispatcher.Invoke(() =>
                 {
 
                     string stateStr = MainWindow.LanguageResource.GetString("current_state") + ":\t" + GetStateStringFromCurrentState((CurrentState)state);
 
-                    MainWindow.Instance.AddLog(stateStr);
-                    MainWindow.Instance.AddLog("MbWritten:\t" + mbWritten);
+                    MainWindow.Instance.AddLog(this, stateStr);
+                    MainWindow.Instance.AddLog(this, "Mb:\t" + mbChanged);
 
                     ProgressBar.Value = progress;
 
                     string infoStr = stateStr;
 
-                    if (averageReadSpeed != 0 && averageWriteSpeed != 0)
-                        infoStr += newLine + newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s" + newLine) + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s" + newLine + newLine);
+                    if (averageReadSpeed != 0)
+                        infoStr += newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s");
 
+                    if (averageWriteSpeed != 0)
+                        infoStr += newLine + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s");
+
+                    // Elapsed time
+                    TimeSpan delta = DateTime.Now - TestStartedTime;
+                    string formattedTime = string.Format(newLine + "{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("elapsed_time"), delta.Hours, delta.Minutes, delta.Seconds);
+                    infoStr += formattedTime;
 
                     if (remainingTimeInSeconds != 0)
                     {
-                        TimeSpan delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
-                        string formattedTime = string.Format("{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
-
+                        delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
+                        formattedTime = string.Format(newLine + "{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
                         infoStr += formattedTime;
                     }
 
@@ -275,7 +286,7 @@ namespace TrueStorageCheck_GUI
                     if (DiskTest != IntPtr.Zero)
                     {
                         var lastSuccessfulWritePosition = DiskTest_GetLastSuccessfulVerifyPosition(DiskTest);
-                        MainWindow.Instance.AddLog(MainWindow.LanguageResource.GetString("last_successful_write") + ": " + lastSuccessfulWritePosition);
+                        MainWindow.Instance.AddLog(this, MainWindow.LanguageResource.GetString("last_successful_write") + ": " + lastSuccessfulWritePosition);
                     }
                 }
 

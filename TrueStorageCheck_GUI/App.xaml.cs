@@ -91,7 +91,11 @@ namespace TrueStorageCheck_GUI
                     Application.Current.Resources.MergedDictionaries.Add(darkTheme);
                 }
             }
-            catch (Exception ex) { }
+            catch (Exception ex) {
+            
+                MessageBox.Show(ex.Message);
+            
+            }
         }
 
         protected override void OnExit(ExitEventArgs e)

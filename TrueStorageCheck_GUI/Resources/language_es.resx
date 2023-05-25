@@ -153,6 +153,9 @@
   <data name="dll_not_found_title" xml:space="preserve">
     <value>¡Oops!</value>
   </data>
+  <data name="elapsed_time" xml:space="preserve">
+    <value>Tiempo tanscurrido</value>
+  </data>
   <data name="error" xml:space="preserve">
     <value>Error</value>
   </data>

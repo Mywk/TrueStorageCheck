@@ -170,6 +170,15 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Verstrichene Zeit.
+        /// </summary>
+        public static string elapsed_time {
+            get {
+                return ResourceManager.GetString("elapsed_time", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Fehler.
         /// </summary>
         public static string error {

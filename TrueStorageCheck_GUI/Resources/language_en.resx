@@ -154,6 +154,9 @@ Make sure you downloaded and extracted all files correctly.</value>
   <data name="dll_not_found_title" xml:space="preserve">
     <value>Ops!</value>
   </data>
+  <data name="elapsed_time" xml:space="preserve">
+    <value>Elapsed time</value>
+  </data>
   <data name="error" xml:space="preserve">
     <value>Error</value>
   </data>
