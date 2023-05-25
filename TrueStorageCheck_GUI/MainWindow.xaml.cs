@@ -54,21 +54,40 @@ namespace TrueStorageCheck_GUI
         }
 
         /// <summary>
+        /// To not update the UI every time, we add the pending logs here
+        /// </summary>
+        Queue<string> PendingLogs = new Queue<string>();
+
+        /// <summary>
         /// Adds text to the log TextBox and scrolls to end afterwards
         /// </summary>
         /// <param name="text"></param>
-        public void AddLog(string text)
+        public void AddLog(TestUserControl tuc, string text)
         {
             if (!string.IsNullOrEmpty(text))
             {
-                const string newLine = "\r\n";
+                PendingLogs.Enqueue(DateTime.Now.ToString("[HH:mm ss] ") + ((tuc == null) ? "" : (tuc.LastSelectedDevice != null) ? tuc.LastSelectedDevice.DriveLetter + ": " : "") + text);
+            }
+        }
 
+        /// <summary>
+        /// Used to add all pending logs to the textbox
+        /// </summary>
+        private void UpdateLogs()
+        {
+            if (PendingLogs.Count > 0)
                 Application.Current.Dispatcher.Invoke(new Action(() =>
                 {
-                    LogTextBox.Text += (LogTextBox.Text.Length != 0 ? newLine : "") + DateTime.Now.ToString("[HH:mm ss] ") + text;
+                    // Dequeue elements, up to 10 elements at a time
+                    int dequeueCount = 0;
+                    while (PendingLogs.Count > 0 || dequeueCount > 10)
+                    {
+                        var str = PendingLogs.Dequeue();
+                        LogTextBox.Text += str + "\r\n";
+                    }
+
                     LogTextBox.ScrollToEnd();
                 }));
-            }
         }
 
         /// <summary>
@@ -83,7 +102,7 @@ namespace TrueStorageCheck_GUI
 
             IntPtr deviceArrayPtr;
             int deviceCount = GetDevices(includeLocal, out deviceArrayPtr);
-            AddLog("Got " + deviceCount + " devices.");
+            AddLog(null, "Got " + deviceCount + " devices.");
 
             for (int i = 0; i < deviceCount; i++)
             {
@@ -150,27 +169,60 @@ namespace TrueStorageCheck_GUI
 
         private ObservableCollection<Language> LanguageList = new();
 
+        BackgroundWorker LogsWorker = new();
+
         public MainWindow()
         {
-            Instance = this;
+            try
+            {
+                Instance = this;
 
-            // Use language if the resource exists
-            LoadLanguageList();
+                // Use language if the resource exists
+                LoadLanguageList();
 
-            // Attempt to load system language
-            var selectedLanguage = LanguageList.ToList().Find(l => l.Code.ToLower() == System.Threading.Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName.ToLower());
+                // Attempt to load system language
+                var selectedLanguage = LanguageList.ToList().Find(l => l.Code.ToLower() == System.Threading.Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName.ToLower());
 
-            // Or the first if failed
-            if (selectedLanguage == null)
-                selectedLanguage = LanguagesComboBox.Items[0] as Language;
+                // Or the first if failed
+                if (selectedLanguage == null)
+                    selectedLanguage = LanguagesComboBox.Items[0] as Language;
 
-            LoadLanguage(selectedLanguage);
+                LoadLanguage(selectedLanguage);
 
-            InitializeComponent();
-            LanguagesComboBox.ItemsSource = LanguageList;
+                InitializeComponent();
+                LanguagesComboBox.ItemsSource = LanguageList;
 
-            LanguagesComboBox.SelectedItem = selectedLanguage;
-            MainGrid.IsEnabled = false;
+                LanguagesComboBox.SelectedItem = selectedLanguage;
+                MainGrid.IsEnabled = false;
+
+                LogsWorker.DoWork += LogsWorker_DoWork;
+                LogsWorker.RunWorkerAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+
+
+        }
+
+        private bool IsClosing = false;
+
+        private void LogsWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            try
+            {
+            while (!IsClosing)
+            {
+                UpdateLogs();
+                System.Threading.Thread.Sleep(5000);
+            }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+
         }
 
         private bool _isLoaded = false;
@@ -262,40 +314,47 @@ namespace TrueStorageCheck_GUI
         /// <param name="e"></param>
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            BottomLabel.Content = "TrueStorageCheck GUI  v" + version.Major + "." + version.Minor + " © " + DateTime.Now.Year + " - Mywk.Net";
-
-            // Check if DLL exists, exit otherwise
-            if (!File.Exists("TrueStorageCheck.dll"))
+            try
             {
-                _ = Task.Run(() =>
+                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                BottomLabel.Content = "TrueStorageCheck GUI  v" + version.Major + "." + version.Minor + " © " + DateTime.Now.Year + " - Mywk.Net";
+
+                // Check if DLL exists, exit otherwise
+                if (!File.Exists("TrueStorageCheck.dll"))
                 {
-                    Dispatcher.Invoke(() =>
+                    _ = Task.Run(() =>
                     {
+                        Dispatcher.Invoke(() =>
+                        {
 
-                        MessageBox.Show(this, LanguageResource.GetString("dll_not_found_text"), LanguageResource.GetString("dll_not_found_title"), MessageBoxButton.OK);
-                        this.Close();
+                            MessageBox.Show(this, LanguageResource.GetString("dll_not_found_text"), LanguageResource.GetString("dll_not_found_title"), MessageBoxButton.OK);
+                            this.Close();
 
+                        });
                     });
-                });
-            }
-            else
-            {
-                if (Properties.Settings.Default.CheckForUpdates)
-                {
-                    CheckForUpdatesCheckBox.IsChecked = true;
-
-                    if (await CheckForUpdatesAsync())
-                        UpdateLabel.Visibility = Visibility.Visible;
                 }
+                else
+                {
+                    if (Properties.Settings.Default.CheckForUpdates)
+                    {
+                        CheckForUpdatesCheckBox.IsChecked = true;
 
-                AddNewDeviceTest();
-                DeviceTestTabControl.SelectedIndex = 0;
+                        if (await CheckForUpdatesAsync())
+                            UpdateLabel.Visibility = Visibility.Visible;
+                    }
 
-                MainGrid.IsEnabled = true;
-                _isLoaded = true;
+                    AddNewDeviceTest();
+                    DeviceTestTabControl.SelectedIndex = 0;
 
-                UpdateDevices(false);
+                    MainGrid.IsEnabled = true;
+                    _isLoaded = true;
+
+                    UpdateDevices(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
             }
         }
 
@@ -393,6 +452,8 @@ namespace TrueStorageCheck_GUI
                     return;
                 }
             }
+
+            IsClosing = true;
         }
 
         private void MinimizeButton_OnClick(object sender, RoutedEventArgs e)
