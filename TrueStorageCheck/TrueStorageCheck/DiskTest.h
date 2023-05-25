@@ -113,8 +113,6 @@ private:
 	/// </summary>
 	ProgressDelegate ProgressCallback;
 
-	
-
 	/// <summary>
 	/// Vector of created files
 	/// </summary>
@@ -135,7 +133,12 @@ private:
 	unsigned long long CapacityToTest;
 	unsigned long long BytesWritten;
 	unsigned long long BytesToVerify;
+
+	// Bytes verified, this is the ammount regardless of uniqueness
 	unsigned long long BytesVerified;
+
+	// Unique bytes verified, used in the last verification
+	unsigned long long RealBytesVerified;
 
 	double TotalWriteDuration;
 	double TotalReadDuration;
@@ -144,6 +147,9 @@ private:
 	double AverageWriteSpeed;
 
 	bool TestRunning;
+
+	// This is where we store our temporary files
+	std::vector<std::string> TempFiles;
 
 	/// <summary>
 	/// Writes a test file to the disk
@@ -158,17 +164,6 @@ private:
 	/// Call to update average read/write speeds using the data available
 	/// </summary>
 	void RecalculateAverageSpeeds();
-
-	/// <summary>
-	/// Used to verify a written file
-	/// </summary>
-	/// <param name="hFile">File handle</param>
-	/// <param name="generatedData">A reference to the vector of generated data to verify against</param>
-	/// <param name="sizeToReader">Length of bytes to read and verify</param>
-	/// <param name="offset">The offset into the generated data buffer to begin verification</param>
-	/// <param name="totalReadDuration">A reference to a double that accumulates the total read duration</param>
-	/// <returns>True if the read and verification was ok</returns>
-	bool ReadAndVerifyData(HANDLE hFile, const std::vector<unsigned char>& generatedData, unsigned long sizeToRead, unsigned long offset, double& totalReadDuration);
 
 	/// <summary>
 	/// Generates a unique test file name
@@ -196,8 +191,9 @@ private:
 	/// Verifies a test file on the disk - Regenerates the data using the filePath for checking
 	/// </summary>
 	/// <param name="filePath">Path</param>
+	/// <param name="updateRealBytes">Updates the total/real number of valid bytes</param>
 	/// <returns>File verified successfully</returns>
-	bool VerifyTestFile(const std::string& filePath);
+	bool VerifyTestFile(const std::string& filePath, bool updateRealBytes = false);
 
 	/// <summary>
 	/// Generate random data using a seed (mt19937 )

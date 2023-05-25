@@ -12,7 +12,7 @@
 #include <sstream>
 #include <algorithm>
 
-// Used for cleaning all files on the drive
+ // Used for cleaning all files on the drive
 #include <filesystem>
 
 // Used for time calculations (Avg Read/Write speeds)
@@ -204,11 +204,9 @@ bool DiskTest::PerformTest()
 	}
 
 	// Vector to store temp files that will be later deleted
-	std::vector<std::string> tempFiles;
 
 	unsigned long long freeSpace = 0;
 	GetDiskSpace(Path, &this->MaxCapacity, &freeSpace);
-
 
 	// Get the data block size for this disk, we attempt to read/write 50 blocks at a time
 	DataBlockSize = GetDataBlockSize(Path);
@@ -226,7 +224,7 @@ bool DiskTest::PerformTest()
 	// Calculate data to verify
 	// It is simply the CapacityToTest if we don't verify the data while writting
 	// Otherwise it's APROXIMATELY twice the capacity, plus extraVerificationSize, hope I didn't mess up this calculation again
-	unsigned long long extraVerificationSize = floor(CapacityToTest / DATA_WRITE_SIZE) * (DATA_WRITE_SIZE / MAX_RAND_DATA_SIZE);
+	unsigned long long extraVerificationSize = floor(CapacityToTest / DATA_WRITE_SIZE) * DataBlockSize;
 	BytesToVerify = StopOnFirstError ? ((CapacityToTest * 2) + extraVerificationSize) : CapacityToTest + (sizeToWrite * 3);
 
 	unsigned long long totalDataWritten = 0;
@@ -287,7 +285,7 @@ bool DiskTest::PerformTest()
 		else
 		{
 			// Store the temp files path
-			tempFiles.push_back(filePath);
+			TempFiles.push_back(filePath);
 		}
 
 		// Verify the test file
@@ -300,8 +298,6 @@ bool DiskTest::PerformTest()
 		totalDataWritten += sizeToWrite;
 		dataLeftToWrite -= sizeToWrite;
 
-		CalculateProgress();
-
 		if (ProgressCallback != NULL)
 			ProgressCallback(this, (int)State_InProgress, CurrentProgress, BYTES_TO_MB(BytesWritten));
 	}
@@ -312,9 +308,9 @@ bool DiskTest::PerformTest()
 		CurrentState = State_Verification;
 		ProgressCallback(this, (int)State_Verification, CurrentProgress, BYTES_TO_MB(BytesVerified));
 
-		for (const auto& filePath : tempFiles)
+		for (const auto& filePath : TempFiles)
 		{
-			if (!VerifyTestFile(filePath))
+			if (!VerifyTestFile(filePath, true))
 			{
 				ret = false;
 				break;
@@ -336,6 +332,9 @@ bool DiskTest::PerformTest()
 		this->RemoveDirectory(Path + tempDirectoryPath);
 	}
 
+	RecalculateAverageSpeeds();
+	CalculateProgress();
+
 	if (CurrentState != State_Aborted)
 		CurrentState = ret ? State_Success : State_Error;
 
@@ -347,7 +346,7 @@ bool DiskTest::PerformTest()
 	return ret;
 }
 
-bool DiskTest::VerifyTestFile(const std::string& filePath)
+bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 {
 	// FILE_FLAG_NO_BUFFERING is important
 	HANDLE hFile = ::CreateFileA(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL);
@@ -388,16 +387,36 @@ bool DiskTest::VerifyTestFile(const std::string& filePath)
 		}
 		auto readEnd = std::chrono::high_resolution_clock::now();
 
-		std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
-		TotalReadDuration += durationMilliseconds.count();
-		BytesVerified += chunkSize;
+		bool success = true;
 
 		// Compare the read data with the generated data
-		auto test = memcmp(fileData.data(), generatedData.data(), chunkSize);
-		if (test != 0)
+		if (memcmp(fileData.data(), generatedData.data(), chunkSize) != 0)
 		{
+			// Get the exact position where it failed
+			for (size_t i = 0; i < chunkSize; i++)
+			{
+				if (fileData.data()[i] != generatedData.data()[i])
+				{
+					BytesVerified += i;
+
+					if (updateRealBytes)
+						RealBytesVerified += i;
+
+					break;
+				}
+			}
+
 			::CloseHandle(hFile);
 			return false;
+		}
+		else
+		{
+			std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
+			TotalReadDuration += durationMilliseconds.count();
+			BytesVerified += chunkSize;
+
+			if (updateRealBytes)
+				RealBytesVerified += chunkSize;
 		}
 
 		totalBytesToRead -= chunkSize;
@@ -409,7 +428,7 @@ bool DiskTest::VerifyTestFile(const std::string& filePath)
 		CalculateProgress();
 
 		if (ProgressCallback != NULL)
-			ProgressCallback(this, (int)State_Verification, CurrentProgress, BYTES_TO_MB(BytesVerified));
+			ProgressCallback(this, (int)State_Verification, CurrentProgress, BYTES_TO_MB(chunkSize));
 	}
 
 	::CloseHandle(hFile);
@@ -457,10 +476,6 @@ double DiskTest::GetAverageWriteSpeed()
 	return AverageWriteSpeed;
 }
 
-/// <summary>
-/// Do not use, unreliable
-/// </summary>
-/// <returns></returns>
 unsigned long long DiskTest::GetLastSuccessfulVerifyPosition()
 {
 	return BytesVerified;
@@ -481,33 +496,11 @@ std::string DiskTest::GenerateTestFileName()
 	return ss.str();
 }
 
-bool DiskTest::ReadAndVerifyData(HANDLE hFile, const std::vector<unsigned char>& generatedData, unsigned long sizeToRead, unsigned long offset, double& totalReadDuration)
-{
-	std::vector<unsigned char> fileData(sizeToRead);
-	unsigned long bytesRead = 0;
-
-	auto readStart = std::chrono::high_resolution_clock::now();
-	// Read the block from the file
-	if (!::ReadFile(hFile, fileData.data(), sizeToRead, &bytesRead, NULL) || bytesRead != sizeToRead)
-		return false;
-	auto readEnd = std::chrono::high_resolution_clock::now();
-
-	std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
-	totalReadDuration += durationMilliseconds.count();
-
-	// Check if the data matches
-	// This was too slow, replaced with memcmp
-	if (memcmp(fileData.data(), generatedData.data() + offset, sizeToRead) != 0)
-		return false;
-
-	return true;
-}
-
 void DiskTest::RecalculateAverageSpeeds()
 {
 	// Calculate speed in MB/s
 	auto avgWriteSpeed = (BytesWritten / (TotalWriteDuration / 1000.0)) / (1024 * 1024); // Convert ms to seconds
-	auto avgReadSpeed = BytesVerified > 0 ? (BytesVerified / (TotalReadDuration / 1000.0)) / (1024 * 1024) : 0; // Convert ms to seconds
+	auto avgReadSpeed = (BytesVerified > 0 && TotalReadDuration > 0) ? (BytesVerified / (TotalReadDuration / 1000.0)) / (1024 * 1024) : 0; // Convert ms to seconds
 
 	AverageWriteSpeed = AverageWriteSpeed == 0 ? avgWriteSpeed : ((AverageWriteSpeed + avgWriteSpeed) / 2);
 	AverageReadSpeed = AverageReadSpeed == 0 ? avgReadSpeed : ((AverageReadSpeed + avgReadSpeed) / 2);
@@ -521,25 +514,28 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 	if (hFile == INVALID_HANDLE_VALUE)
 		return 0;
 
+	unsigned long long chunkSize = std::min<unsigned long long>(fileSize, MAX_RAND_DATA_SIZE);
+
 	// Create avector big enough data to cover the entire random data size initially
-	std::vector<unsigned char> generatedData(MAX_RAND_DATA_SIZE);
+	std::vector<unsigned char> generatedData(chunkSize);
 
 	int segment = 0;
 
 	// Generate initial data
 	GenerateData(generatedData, filePath + std::to_string(segment));
 
-	unsigned long long chunkSize = std::min<unsigned long long>(fileSize, MAX_RAND_DATA_SIZE);
 
 	// Ensure chunkSize is a multiple of the block size
 	chunkSize = chunkSize - (chunkSize % DataBlockSize);
 
-	// We always re-check the first written data chunk in order to attempt to find an error faster
-	std::vector<unsigned char> firstGeneratedData(chunkSize);
-	if (failOnFirst)
-		std::memcpy(firstGeneratedData.data(), generatedData.data(), chunkSize);
+	// Used for re-verifying the first written data
+	unsigned long long testReadSize = std::min<unsigned long long>(chunkSize, DataBlockSize);;
+	std::vector<unsigned char> firstGeneratedData(testReadSize);
 
-	unsigned long long fileBytesGenerated = MAX_RAND_DATA_SIZE;
+	if (failOnFirst)
+		std::memcpy(firstGeneratedData.data(), generatedData.data(), testReadSize);
+
+	unsigned long long fileBytesGenerated = chunkSize;
 	unsigned long fileBytesWritten = 0;
 	unsigned long offset = 0;
 
@@ -557,7 +553,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 		{
 			segment++;
 			GenerateData(generatedData, filePath + std::to_string(segment));
-			fileBytesGenerated += MAX_RAND_DATA_SIZE;
+			fileBytesGenerated += generatedData.size();
 		}
 
 		unsigned long bytesWritten = 0;
@@ -575,39 +571,45 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 		// Flush the data to the disk
 		::FlushFileBuffers(hFile);
 
+		if (failOnFirst)
+		{
+			// We always read and verify the first written data every single time,
+			// as it the most prone to corruption if this device is fake
+			
+			// Save current position
+			LONG currentHighPart = 0;
+			DWORD currentLowPart = ::SetFilePointer(hFile, 0, &currentHighPart, FILE_CURRENT);
+			if (currentLowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+				break;
+
+			// Set file pointer to the start of the file
+			LONG zero = 0;
+			::SetFilePointer(hFile, zero, &zero, FILE_BEGIN);
+
+			// Re-read and verify the first written data
+			std::vector<unsigned char> fileData(testReadSize);
+			unsigned long bytesRead = 0;
+
+			// Read the block from the file
+			if (!::ReadFile(hFile, fileData.data(), testReadSize, &bytesRead, NULL) || bytesRead != testReadSize)
+				break;
+
+			// Check if the data matches
+			if (memcmp(fileData.data(), firstGeneratedData.data(), testReadSize) != 0)
+			{
+				::CloseHandle(hFile);
+				return false;
+			}
+
+			// Restore file pointer to the previous position
+			::SetFilePointer(hFile, currentLowPart, &currentHighPart, FILE_BEGIN);
+
+			BytesVerified += testReadSize;
+		}
+
 		fileSize -= bytesWritten;
 		fileBytesWritten += bytesWritten;
 		offset = (offset + bytesWritten) % MAX_RAND_DATA_SIZE;
-
-		if (failOnFirst)
-		{
-			//// We always read and verify the first written data every single time, as it the most prone to corruption if this device is fake
-
-		 //  // Save current position
-			//LONG currentHighPart = 0;
-			//DWORD currentLowPart = ::SetFilePointer(hFile, 0, &currentHighPart, FILE_CURRENT);
-			//if (currentLowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
-			//	break;
-
-			//// Set file pointer to the start of the file
-			//LONG zero = 0;
-			//::SetFilePointer(hFile, zero, &zero, FILE_BEGIN);
-
-			//// Re-read and verify the first written data
-			//{
-			//	std::vector<unsigned char> fileData(chunkSize);
-			//	unsigned long bytesRead = 0;
-
-			//	// Read the block from the file
-			//	if (!::ReadFile(hFile, fileData.data(), chunkSize, &bytesRead, NULL) || bytesRead != chunkSize)
-			//		break;
-
-			//	// Check if the data matches
-			//	// This was too slow, replaced with memcmp
-			//	if (memcmp(fileData.data(), firstGeneratedData.data(), chunkSize) != 0)
-			//		break;
-			//}
-		}
 
 		// Recalculate average speeds and progress
 		RecalculateAverageSpeeds();
@@ -667,7 +669,6 @@ unsigned long DiskTest::GetTimeRemaining()
 {
 	// Note: We can't just assume the read/write times are roughly equal, they almost never are,
 	// especially in fake devices, so we need to calculate seperately and then add them together
-
 
 	// Calculate remaining time for writing and reading separately, then sum
 	int timeRemainingForWritingSec = AverageWriteSpeed == 0 ? 0 : ((CapacityToTest - BytesWritten) / (1024 * 1024)) / AverageWriteSpeed;
