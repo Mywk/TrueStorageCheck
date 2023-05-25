@@ -96,20 +96,37 @@ public:
 
 private:
 
+	/// <summary>
+	/// Test path
+	/// </summary>
 	std::string Path;
 
+	/// <summary>
+	/// Options
+	/// </summary>
 	bool StopOnFirstError;
 	bool DeleteTempFiles;
 	bool WriteLogFile;
 
+	/// <summary>
+	/// Progress callback - To report progress
+	/// </summary>
 	ProgressDelegate ProgressCallback;
 
-	unsigned long long MaxCapacity;
+	
 
-	unsigned long long DataBlockSize;
-
-	unsigned long long CurrentFileSize;
+	/// <summary>
+	/// Vector of created files
+	/// </summary>
 	std::vector<std::string> CreatedFiles;
+
+
+	/// <summary>
+	/// Other variables
+	/// </summary>
+	unsigned long long MaxCapacity;
+	unsigned long long DataBlockSize;
+	unsigned long long CurrentFileSize;
 
 	State CurrentState;
 
