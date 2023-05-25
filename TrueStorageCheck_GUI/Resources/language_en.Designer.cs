@@ -188,6 +188,15 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Failed after writing byte.
+        /// </summary>
+        public static string failed_after_byte {
+            get {
+                return ResourceManager.GetString("failed_after_byte", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to In progress.
         /// </summary>
         public static string in_progress {

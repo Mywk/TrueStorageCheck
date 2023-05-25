@@ -160,6 +160,9 @@ Make sure you downloaded and extracted all files correctly.</value>
   <data name="error" xml:space="preserve">
     <value>Error</value>
   </data>
+  <data name="failed_after_byte" xml:space="preserve">
+    <value>Failed after writing byte</value>
+  </data>
   <data name="info" xml:space="preserve">
     <value>Info</value>
   </data>

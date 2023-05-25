@@ -574,7 +574,7 @@ namespace TrueStorageCheck_GUI
             // QND
             var tabItem = DeviceTestTabControl.Items.OfType<TabItem>().SingleOrDefault(ti => ti.Header.Equals((sender as Button).Parent));
 
-            if (tabItem != null && tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsWorking)
+            if (tabItem != null && tabItem.Content.GetType() == typeof(TestUserControl) && !((TestUserControl)tabItem.Content).IsRunning)
                 DeviceTestTabControl.Items.Remove(tabItem);
         }
 

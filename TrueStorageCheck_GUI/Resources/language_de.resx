@@ -160,6 +160,9 @@ Stellen Sie sicher, dass Sie alle Dateien korrekt heruntergeladen und extrahiert
   <data name="error" xml:space="preserve">
     <value>Fehler</value>
   </data>
+  <data name="failed_after_byte" xml:space="preserve">
+    <value>Fehler nach dem Schreiben des Bytes</value>
+  </data>
   <data name="info" xml:space="preserve">
     <value>Info</value>
   </data>

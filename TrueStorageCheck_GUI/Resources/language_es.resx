@@ -159,6 +159,9 @@
   <data name="error" xml:space="preserve">
     <value>Error</value>
   </data>
+  <data name="failed_after_byte" xml:space="preserve">
+    <value>Falló después de escribir el byte</value>
+  </data>
   <data name="info" xml:space="preserve">
     <value>Información</value>
   </data>

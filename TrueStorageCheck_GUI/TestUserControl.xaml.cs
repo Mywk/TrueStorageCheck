@@ -104,7 +104,7 @@ namespace TrueStorageCheck_GUI
             }
         }
 
-        public bool IsWorking { get; set; }
+        public bool IsRunning { get; set; }
 
         enum CurrentState
         {
@@ -163,7 +163,7 @@ namespace TrueStorageCheck_GUI
         /// </summary>
         public void StartTest()
         {
-            if (IsWorking)
+            if (IsRunning)
             {
                 if (DiskTest != IntPtr.Zero)
                 {
@@ -181,15 +181,26 @@ namespace TrueStorageCheck_GUI
                     {
                         if (DiskTest == IntPtr.Zero)
                         {
-                            IsWorking = false;
-                            RestoreStartButton();
+                            if (ProgressHandler == null)
+                            {
+                                IsRunning = false;
+                                RestoreStartButton();
+                            }
+                            else
+                            {
+                                Dispatcher.Invoke(() =>
+                                {
+                                    StartButton.IsEnabled = false;
+                                    ToggleInteration(false);
+                                });
+                            }
                         }
                     });
                 }
                 return;
             }
 
-            IsWorking = true;
+            IsRunning = true;
 
             TestStartedTime = DateTime.Now;
 
@@ -199,65 +210,6 @@ namespace TrueStorageCheck_GUI
 
             SetCompletionLabel(CompletionStatus.Unknown);
             ProgressBar.Value = 0;
-
-            // Create a progress delegate that reports progress to the console
-            ProgressDelegate progressHandler = (instance, state, progress, mbChanged) =>
-            {
-                double remainingTimeInSeconds = (CurrentState)state == CurrentState.InProgress || (CurrentState)state == CurrentState.Verifying ? DiskTest_GetTimeRemaining(instance) : 0;
-
-                double averageReadSpeed = DiskTest_GetAverageReadSpeed(instance);
-                double averageWriteSpeed = DiskTest_GetAverageWriteSpeed(instance);
-
-                Dispatcher.Invoke(() =>
-                {
-
-                    string stateStr = MainWindow.LanguageResource.GetString("current_state") + "\t\t" + GetStateStringFromCurrentState((CurrentState)state);
-
-                    MainWindow.Instance.AddLog(this, stateStr);
-                    MainWindow.Instance.AddLog(this, "Mb:\t" + mbChanged);
-
-                    ProgressBar.Value = progress;
-
-                    string infoStr = stateStr;
-
-                    if (averageReadSpeed != 0)
-                        infoStr += newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t\t0.00 MB/s");
-
-                    if (averageWriteSpeed != 0)
-                        infoStr += newLine + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + "\t\t 0.00 MB/s");
-
-                    // Elapsed time
-                    TimeSpan delta = DateTime.Now - TestStartedTime;
-                    string formattedTime = string.Format(newLine + "{0}\t\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("elapsed_time"), delta.Hours, delta.Minutes, delta.Seconds);
-                    infoStr += formattedTime;
-
-                    if (remainingTimeInSeconds != 0)
-                    {
-                        delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
-                        formattedTime = string.Format(newLine + "{0}\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
-                        infoStr += formattedTime;
-                    }
-
-                    InfoContentLabel.Content = infoStr;
-
-                    currentState = (CurrentState)state;
-
-                    if (state == (int)CurrentState.Success)
-                    {
-                        SetCompletionLabel(CompletionStatus.Success);
-                        UpdateCurrentInfo();
-                    }
-                    else if (state == (int)CurrentState.Error || state == (int)CurrentState.Aborted)
-                    {
-                        SetCompletionLabel(CompletionStatus.Failed);
-                        UpdateCurrentInfo();
-                    }
-                    else
-                    {
-                        CurrentInfo = progress.ToString() + "%";
-                    }
-                });
-            };
 
             // Options
             bool stopOnFirstFailure = (bool)StopOnFirstFailureCheckBox.IsChecked;
@@ -277,7 +229,7 @@ namespace TrueStorageCheck_GUI
                 }
 
 
-                DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, progressHandler);
+                DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, ProgressHandler);
 
                 bool startResult = DiskTest_PerformTest(DiskTest);
 
@@ -298,7 +250,7 @@ namespace TrueStorageCheck_GUI
 
             }).ContinueWith(t =>
             {
-                IsWorking = false;
+                IsRunning = false;
                 RestoreStartButton();
             });
         }
@@ -309,6 +261,7 @@ namespace TrueStorageCheck_GUI
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        private ProgressDelegate ProgressHandler = null;
 
         public TestUserControl()
         {
@@ -325,6 +278,79 @@ namespace TrueStorageCheck_GUI
             DevicesComboBox.SetBinding(ItemsControl.ItemsSourceProperty, binding);
 
             MainWindow.Instance.DeviceList.CollectionChanged += DeviceList_CollectionChanged;
+
+            // Create a progress delegate that reports progress to the console
+            ProgressHandler = (instance, state, progress, mbChanged) =>
+            {
+                double remainingTimeInSeconds = (CurrentState)state == CurrentState.InProgress || (CurrentState)state == CurrentState.Verifying ? DiskTest_GetTimeRemaining(instance) : 0;
+
+                double averageReadSpeed = DiskTest_GetAverageReadSpeed(instance);
+                double averageWriteSpeed = DiskTest_GetAverageWriteSpeed(instance);
+
+                string newLine = Environment.NewLine;
+
+                Dispatcher.Invoke(() =>
+                {
+                    string stateStr = $"{MainWindow.LanguageResource.GetString("current_state")}\t\t{GetStateStringFromCurrentState((CurrentState)state)}";
+                    MainWindow.Instance.AddLog(this, stateStr);
+                    MainWindow.Instance.AddLog(this, $"Mb:\t{mbChanged}");
+
+                    ProgressBar.Value = progress;
+
+                    string infoStr = stateStr;
+
+                    if (averageReadSpeed != 0 && !double.IsInfinity(averageReadSpeed))
+                        infoStr += $"{newLine}{averageReadSpeed.ToString($"{MainWindow.LanguageResource.GetString("avg_read")} \t\t0.00 MB/s")}";
+
+                    if (averageWriteSpeed != 0 && !double.IsInfinity(averageWriteSpeed))
+                        infoStr += $"{newLine}{averageWriteSpeed.ToString($"{MainWindow.LanguageResource.GetString("avg_write")}\t\t 0.00 MB/s")}";
+
+                    // Elapsed time
+                    TimeSpan delta = DateTime.Now - TestStartedTime;
+                    string formattedTime = $"{newLine}{MainWindow.LanguageResource.GetString("elapsed_time")}\t\t{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
+                    infoStr += formattedTime;
+
+                    if (remainingTimeInSeconds != 0)
+                    {
+                        delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
+                        formattedTime = $"{newLine}{MainWindow.LanguageResource.GetString("remaining_time")}\t{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
+                        infoStr += formattedTime;
+                    }
+
+
+                    currentState = (CurrentState)state;
+
+                    if (state == (int)CurrentState.Success || state == (int)CurrentState.Error || state == (int)CurrentState.Aborted)
+                    {
+                        if (state == (int)CurrentState.Success)
+                        {
+                            SetCompletionLabel(CompletionStatus.Success);
+
+                            infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("success")}";
+                        }
+                        else
+                        {
+                            SetCompletionLabel(CompletionStatus.Failed);
+
+                            var lastSuccessfulVerifiedByte = DiskTest_GetLastSuccessfulVerifyPosition(instance);
+
+                            if (lastSuccessfulVerifiedByte > 0)
+                                infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("failed_after_byte")}{newLine}{lastSuccessfulVerifiedByte}";
+                            else
+                                infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("error")}";
+                        }
+
+                        UpdateCurrentInfo();
+                        RestoreStartButton();
+
+                        IsRunning = false;
+                    }
+                    else
+                        CurrentInfo = $"{progress}%";
+
+                    InfoContentLabel.Content = infoStr;
+                });
+            };
         }
 
         private void DeviceList_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -367,9 +393,6 @@ namespace TrueStorageCheck_GUI
             });
         }
 
-
-
-        private string filename = "";
 
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
@@ -415,7 +438,9 @@ namespace TrueStorageCheck_GUI
                     var capacityInMb = UpdateAllAvailableSpace();
 
                     MbLabel.Content = capacityInMb.ToString() + " MB";
-                    StartButton.IsEnabled = true;
+
+                    if(CanInteract && capacityInMb > 0)
+                        StartButton.IsEnabled = true;
 
                     canTest = true;
                 }
@@ -431,12 +456,16 @@ namespace TrueStorageCheck_GUI
             }
         }
 
+        private bool CanInteract = true;
+
         /// <summary>
         /// Toggles interaction, this could be simpler but eh
         /// </summary>
         /// <param name="value"></param>
         private void ToggleInteration(bool value)
         {
+            CanInteract = value;
+
             DevicesComboBox.IsEnabled = RefreshButton.IsEnabled = OptionsBorder.IsEnabled = LocalDisksCheckBox.IsEnabled = value;
         }
 
@@ -448,6 +477,7 @@ namespace TrueStorageCheck_GUI
             {
                 StartButton.Content = MainWindow.LanguageResource.GetString("start");
                 ToggleInteration(true);
+                StartButton.IsEnabled = true;
             });
         }
 
@@ -515,8 +545,13 @@ namespace TrueStorageCheck_GUI
         {
             if (LastSelectedDevice == null) return;
 
-            if (MbNumericUpDown.Value != 0)
-                AllAvailableSpaceCheckBox.IsChecked = (bool)(MbNumericUpDown.Value == MbNumericUpDown.Maximum);
+            if (MbNumericUpDown.Maximum != 0)
+            {
+                if(MbNumericUpDown.Value > MbNumericUpDown.Maximum)
+                    MbNumericUpDown.Value = MbNumericUpDown.Maximum;
+
+                AllAvailableSpaceCheckBox.IsChecked = (bool)(MbNumericUpDown.Value == MbNumericUpDown.Maximum || MbNumericUpDown.Value == 0);
+            }
         }
     }
 }
