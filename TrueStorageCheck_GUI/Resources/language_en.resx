@@ -197,7 +197,7 @@ Make sure you downloaded and extracted all files correctly.</value>
     <value>Refresh</value>
   </data>
   <data name="remaining_time" xml:space="preserve">
-    <value>Remaining time</value>
+    <value>Est. Remaining time</value>
   </data>
   <data name="remove_temporary_files" xml:space="preserve">
     <value>Remove temporary files when finished</value>

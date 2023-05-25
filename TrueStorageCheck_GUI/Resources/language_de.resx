@@ -197,7 +197,7 @@ Stellen Sie sicher, dass Sie alle Dateien korrekt heruntergeladen und extrahiert
     <value>Aktualisieren</value>
   </data>
   <data name="remaining_time" xml:space="preserve">
-    <value>Verbleibende Zeit</value>
+    <value>Vor. verbleibende Zeit</value>
   </data>
   <data name="remove_temporary_files" xml:space="preserve">
     <value>Temporäre Dateien entfernen, wenn fertiggestellt</value>

@@ -296,7 +296,7 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Verbleibende Zeit.
+        ///   Looks up a localized string similar to Vor. verbleibende Zeit.
         /// </summary>
         public static string remaining_time {
             get {

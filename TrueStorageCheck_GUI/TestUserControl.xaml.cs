@@ -211,7 +211,7 @@ namespace TrueStorageCheck_GUI
                 Dispatcher.Invoke(() =>
                 {
 
-                    string stateStr = MainWindow.LanguageResource.GetString("current_state") + ":\t" + GetStateStringFromCurrentState((CurrentState)state);
+                    string stateStr = MainWindow.LanguageResource.GetString("current_state") + "\t\t" + GetStateStringFromCurrentState((CurrentState)state);
 
                     MainWindow.Instance.AddLog(this, stateStr);
                     MainWindow.Instance.AddLog(this, "Mb:\t" + mbChanged);
@@ -221,20 +221,20 @@ namespace TrueStorageCheck_GUI
                     string infoStr = stateStr;
 
                     if (averageReadSpeed != 0)
-                        infoStr += newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t0.00 MB/s");
+                        infoStr += newLine + averageReadSpeed.ToString(MainWindow.LanguageResource.GetString("avg_read") + " \t\t0.00 MB/s");
 
                     if (averageWriteSpeed != 0)
-                        infoStr += newLine + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + " \t 0.00 MB/s");
+                        infoStr += newLine + averageWriteSpeed.ToString(MainWindow.LanguageResource.GetString("avg_write") + "\t\t 0.00 MB/s");
 
                     // Elapsed time
                     TimeSpan delta = DateTime.Now - TestStartedTime;
-                    string formattedTime = string.Format(newLine + "{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("elapsed_time"), delta.Hours, delta.Minutes, delta.Seconds);
+                    string formattedTime = string.Format(newLine + "{0}\t\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("elapsed_time"), delta.Hours, delta.Minutes, delta.Seconds);
                     infoStr += formattedTime;
 
                     if (remainingTimeInSeconds != 0)
                     {
                         delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
-                        formattedTime = string.Format(newLine + "{0}:\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
+                        formattedTime = string.Format(newLine + "{0}\t{1:00}:{2:00}:{3:00}", MainWindow.LanguageResource.GetString("remaining_time"), delta.Hours, delta.Minutes, delta.Seconds);
                         infoStr += formattedTime;
                     }
 
