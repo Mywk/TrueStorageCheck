@@ -1,6 +1,16 @@
+/* Copyright (C) 2023 - Mywk.Net
+ * Licensed under the EUPL, Version 1.2
+ * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
+ * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
 #pragma once
+
+#include <windows.h>
 #include <string>
 #include <vector>
+
+#include "TestFile.h"
+
 class DiskTest
 {
 public:
@@ -82,6 +92,11 @@ public:
 	unsigned long GetTimeRemaining();
 
 	/// <summary>
+	/// Call before deleting
+	/// </summary>
+	void Dispose();
+
+	/// <summary>
 	/// Return states
 	/// </summary>
 	enum State
@@ -116,8 +131,7 @@ private:
 	/// <summary>
 	/// Vector of created files
 	/// </summary>
-	std::vector<std::string> CreatedFiles;
-
+	std::vector<TestFile*> TestFiles;
 
 	/// <summary>
 	/// Other variables
@@ -148,8 +162,6 @@ private:
 
 	bool TestRunning;
 
-	// This is where we store our temporary files
-	std::vector<std::string> TempFiles;
 
 	/// <summary>
 	/// Writes a test file to the disk
@@ -194,6 +206,16 @@ private:
 	/// <param name="updateRealBytes">Updates the total/real number of valid bytes</param>
 	/// <returns>File verified successfully</returns>
 	bool VerifyTestFile(const std::string& filePath, bool updateRealBytes = false);
+
+	/// <summary>
+	/// Verifies a test file on the disk - Regenerates the data using the filePath for checking
+	/// </summary>
+	/// <param name="filePath">Path</param>
+	/// <param name="fileSize">File size, or zero if it needs to be fetched</param>
+	/// <param name="updateRealBytes">Updates the total/real number of valid bytes</param>			
+	/// <param name="pData">Optional: For verifying data without generating</param>			
+	/// <returns>File verified successfully</returns>
+	bool InternalVerifyTestFile(const std::string& filePath, unsigned long long fileSize = 0, bool updateRealBytes = false, const unsigned char* pData = nullptr);
 
 	/// <summary>
 	/// Generate random data using a seed (mt19937 )

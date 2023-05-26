@@ -3,7 +3,6 @@
  * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-#include "pch.h"
 #include "DiskTest.h"
 
 #include <ctime>
@@ -222,8 +221,7 @@ bool DiskTest::PerformTest()
 	unsigned long long sizeToWrite = std::min<unsigned long long>(this->CapacityToTest, DATA_WRITE_SIZE);
 
 	// Calculate data to verify
-	// It is simply the CapacityToTest if we don't verify the data while writting
-	// Otherwise it's APROXIMATELY twice the capacity, plus extraVerificationSize, hope I didn't mess up this calculation again
+	// These are proximate values only, this needs a better description (and possibly a better implementation)
 	unsigned long long extraVerificationSize = floor(CapacityToTest / DATA_WRITE_SIZE) * DataBlockSize;
 	BytesToVerify = StopOnFirstError ? ((CapacityToTest * 2) + extraVerificationSize) : CapacityToTest + (sizeToWrite * 3);
 
@@ -251,32 +249,6 @@ bool DiskTest::PerformTest()
 		// Write the test file
 		auto dataWritten = WriteAndVerifyTestFile(filePath, sizeToWrite, StopOnFirstError);
 
-		// Removed at the cost of a worst estimate, don't really think it's necessary and will just add unnecessary delays
-		// Perform at least 2 dummy reads just to calculate the read speed if not StopOnFirstError
-		/*if (BytesVerified == 0 && sizeToWrite > 0 && !StopOnFirstError)
-		{
-			for (size_t i = 0; i < 2; i++)
-			{
-				HANDLE hFile = ::CreateFileA(filePath.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
-				std::vector<unsigned char> dummyData(sizeToWrite);
-				unsigned long bytesRead;
-
-				auto readStart = std::chrono::high_resolution_clock::now();
-				if (!::ReadFile(hFile, dummyData.data(), sizeToWrite, &bytesRead, NULL))
-				{
-					::CloseHandle(hFile);
-					return false;
-				}
-				::CloseHandle(hFile);
-
-				auto readEnd = std::chrono::high_resolution_clock::now();
-
-				std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
-				TotalReadDuration += durationMilliseconds.count();
-				BytesVerified += sizeToWrite;
-			}
-		}*/
-
 		if (dataWritten < sizeToWrite)
 		{
 			BytesVerified = dataWritten;
@@ -284,13 +256,24 @@ bool DiskTest::PerformTest()
 		}
 		else
 		{
-			// Store the temp files path
-			TempFiles.push_back(filePath);
+			// Perform at least one complete read to get the Average Read speed for a better time calculation
+			if (BytesVerified == 0 && TestFiles.size() == 1)
+				VerifyTestFile(TestFiles.front()->Path);
 		}
 
-		// Verify the test file
-		if (ret && StopOnFirstError && !VerifyTestFile(filePath))
-			ret = false;
+		// If StopOnFirstError is true, every time we finish writing a file,
+		// we check the first DataBlock from each file to ensure everything is still fine
+		if (ret && StopOnFirstError)
+		{
+			for (const auto& testFile : TestFiles)
+			{
+				if (!InternalVerifyTestFile(testFile->Path, DataBlockSize, false, (const unsigned char*)&testFile->Data[0]))
+				{
+					ret = false;
+					break;
+				}
+			}
+		}
 
 		if (!ret)
 			break;
@@ -303,14 +286,14 @@ bool DiskTest::PerformTest()
 	}
 
 	// Perform final verification
-	if (ret)
+	if (ret && CurrentState != State_Aborted)
 	{
 		CurrentState = State_Verification;
 		ProgressCallback(this, (int)State_Verification, CurrentProgress, BYTES_TO_MB(BytesVerified));
 
-		for (const auto& filePath : TempFiles)
+		for (const auto& testFile : TestFiles)
 		{
-			if (!VerifyTestFile(filePath, true))
+			if (!VerifyTestFile(testFile->Path, true))
 			{
 				ret = false;
 				break;
@@ -346,7 +329,7 @@ bool DiskTest::PerformTest()
 	return ret;
 }
 
-bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
+bool DiskTest::InternalVerifyTestFile(const std::string& filePath, unsigned long long fileSize, bool updateRealBytes, const unsigned char* pData)
 {
 	// FILE_FLAG_NO_BUFFERING is important
 	HANDLE hFile = ::CreateFileA(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL);
@@ -354,14 +337,20 @@ bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 	if (hFile == INVALID_HANDLE_VALUE)
 		return false;
 
-	LARGE_INTEGER fileSize;
-	if (!::GetFileSizeEx(hFile, &fileSize))
+	LARGE_INTEGER fSize;
+
+	if (fileSize == 0)
 	{
-		::CloseHandle(hFile);
-		return false;
+		if (!::GetFileSizeEx(hFile, &fSize))
+		{
+			::CloseHandle(hFile);
+			return false;
+		}
+
+		fileSize = fSize.QuadPart;
 	}
 
-	unsigned long long totalBytesToRead = fileSize.QuadPart;
+	unsigned long long totalBytesToRead = fileSize;
 	unsigned long offset = 0;
 	int segment = 0;
 
@@ -373,8 +362,12 @@ bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 		chunkSize = chunkSize - (chunkSize % DataBlockSize);
 
 		// Re-generate the data for this chunk
-		std::vector<unsigned char> generatedData(chunkSize);
-		GenerateData(generatedData, filePath + std::to_string(segment));
+		std::vector<unsigned char> generatedData(chunkSize); 
+
+		if (pData != nullptr)
+			memcpy(&generatedData[0], pData, chunkSize);
+		else
+			GenerateData(generatedData, filePath + std::to_string(segment));
 
 		std::vector<unsigned char> fileData(chunkSize);
 		unsigned long bytesRead;
@@ -411,12 +404,16 @@ bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 		}
 		else
 		{
-			std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
-			TotalReadDuration += durationMilliseconds.count();
-			BytesVerified += chunkSize;
+			// If we are performing non-standard verifications we do not count that time towards our total count
+			if (pData == nullptr)
+			{
+				std::chrono::duration<double, std::milli> durationMilliseconds = readEnd - readStart;
+				TotalReadDuration += durationMilliseconds.count();
+				BytesVerified += chunkSize;
 
-			if (updateRealBytes)
-				RealBytesVerified += chunkSize;
+				if (updateRealBytes)
+					RealBytesVerified += chunkSize;
+			}
 		}
 
 		totalBytesToRead -= chunkSize;
@@ -434,6 +431,11 @@ bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 	::CloseHandle(hFile);
 
 	return true;
+}
+
+bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
+{
+	return(InternalVerifyTestFile(filePath, 0, updateRealBytes));
 }
 
 
@@ -519,7 +521,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 	// Create avector big enough data to cover the entire random data size initially
 	std::vector<unsigned char> generatedData(chunkSize);
 
-	int segment = 0;
+	unsigned int segment = 0;
 
 	// Generate initial data
 	GenerateData(generatedData, filePath + std::to_string(segment));
@@ -538,6 +540,10 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 	unsigned long long fileBytesGenerated = chunkSize;
 	unsigned long fileBytesWritten = 0;
 	unsigned long offset = 0;
+
+	TestFile* testFile = new TestFile(filePath, fileSize);
+
+	TestFiles.push_back(testFile);
 
 	while (fileSize > 0 && TestRunning)
 	{
@@ -573,6 +579,12 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 
 		if (failOnFirst)
 		{
+			// If it's the first, save part of the generated data for our quick tests
+			if (fileBytesWritten == 0)
+				testFile->SetData((const unsigned char*)&generatedData[0], DataBlockSize);
+
+			// TODO: Re-use the data above instead of using firstGeneratedData
+
 			// We always read and verify the first written data every single time,
 			// as it the most prone to corruption if this device is fake
 			
@@ -680,6 +692,14 @@ unsigned long DiskTest::GetTimeRemaining()
 		timeRemainingForReadingSec = AverageWriteSpeed == 0 ? 0 : ((CapacityToTest) / (1024 * 1024)) / (AverageWriteSpeed * 2);
 
 	return timeRemainingForWritingSec + timeRemainingForReadingSec;
+}
+
+void DiskTest::Dispose()
+{
+	// Clean up TestFiles
+	for (TestFile* file : TestFiles) {
+		delete file;
+	}
 }
 
 //bool DiskTest::DeleteTestFile(const std::string& filePath)
