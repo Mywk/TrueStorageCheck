@@ -82,29 +82,6 @@ void DiskTest::GenerateData(std::vector<unsigned char>& data, const std::string&
 	std::minstd_rand seed_generator(hashed_seed);
 	std::vector<std::thread> threads;
 
-	// LCG - x32
-	//for (size_t i = 0; i < data.size(); i += 4)
-	//{
-	//	uint32_t rand_val = generator();
-	//	for (size_t j = 0; j < 4 && (i + j) < data.size(); ++j)
-	//	{
-	//		data[i + j] = (rand_val >> (j * 8)) & 0xFF;
-	//	}
-	//}
-
-
-	// Evendly devide the data and ensure the chunk size is a multiple of 8.
-	//size_t raw_chunk_size = (data.size() + MAX_NUM_THREADS - 1) / MAX_NUM_THREADS;
-	//size_t chunk_size = (raw_chunk_size + 7) / 8 * 8; // Round up to nearest multiple of 8
-
-	//for (int i = 0; i < MAX_NUM_THREADS; ++i)
-	//{
-	//	size_t start = i * chunk_size;
-	//	size_t end = std::min<unsigned long long>(start + chunk_size, data.size());
-	//	unsigned long long thread_seed = (static_cast<unsigned long long>(seed_generator()) << 32) | seed_generator();
-	//	threads.push_back(std::thread(GenerateDataThread, std::ref(data), start, end, thread_seed));
-	//}
-
 	// Adjust chunk size
 	size_t chunk_size = (data.size() / MAX_NUM_THREADS);
 	size_t remaining = data.size() % MAX_NUM_THREADS;
@@ -119,8 +96,6 @@ void DiskTest::GenerateData(std::vector<unsigned char>& data, const std::string&
 
 	for (auto& thread : threads)
 		thread.join();
-
-	// GIT: Replaced mersenne twister with LCG
 }
 
 
@@ -257,7 +232,7 @@ bool DiskTest::PerformTest()
 		else
 		{
 			// Perform at least one complete read to get the Average Read speed for a better time calculation
-			if (BytesVerified == 0 && TestFiles.size() == 1)
+			if (TestFiles.size() == 1)
 				VerifyTestFile(TestFiles.front()->Path);
 		}
 
@@ -267,7 +242,7 @@ bool DiskTest::PerformTest()
 		{
 			for (const auto& testFile : TestFiles)
 			{
-				if (!InternalVerifyTestFile(testFile->Path, DataBlockSize, false, (const unsigned char*)&testFile->Data[0]))
+				if (!InternalVerifyTestFile(testFile->Path, DataBlockSize, false, &testFile->Data[0]))
 				{
 					ret = false;
 					break;
@@ -304,15 +279,12 @@ bool DiskTest::PerformTest()
 	// Delete all the temporary files
 	if (DeleteTempFiles)
 	{
-		// No longer used
-		/*for (const auto& filePath : tempFiles)
-		{
-			if (!DeleteTestFile(filePath))
-				break;
-		}*/
-
 		// Delete any temporary data that can eventually already exist, then flush the changes
 		this->RemoveDirectory(Path + tempDirectoryPath);
+	}
+	else if (WriteLogFile)
+	{
+		// TODO
 	}
 
 	RecalculateAverageSpeeds();
@@ -508,10 +480,11 @@ void DiskTest::RecalculateAverageSpeeds()
 	AverageReadSpeed = AverageReadSpeed == 0 ? avgReadSpeed : ((AverageReadSpeed + avgReadSpeed) / 2);
 }
 
+// At some point I should just re-write all this to use SCSI Read/Write when applicable
 unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsigned long long fileSize, bool failOnFirst)
 {
 	// FILE_FLAG_NO_BUFFERING is important
-	HANDLE hFile = ::CreateFileA(filePath.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
+	HANDLE hFile = ::CreateFileA(filePath.c_str(), FILE_READ_DATA | FILE_WRITE_DATA, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
 
 	if (hFile == INVALID_HANDLE_VALUE)
 		return 0;
@@ -526,16 +499,8 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 	// Generate initial data
 	GenerateData(generatedData, filePath + std::to_string(segment));
 
-
 	// Ensure chunkSize is a multiple of the block size
 	chunkSize = chunkSize - (chunkSize % DataBlockSize);
-
-	// Used for re-verifying the first written data
-	unsigned long long testReadSize = std::min<unsigned long long>(chunkSize, DataBlockSize);;
-	std::vector<unsigned char> firstGeneratedData(testReadSize);
-
-	if (failOnFirst)
-		std::memcpy(firstGeneratedData.data(), generatedData.data(), testReadSize);
 
 	unsigned long long fileBytesGenerated = chunkSize;
 	unsigned long fileBytesWritten = 0;
@@ -574,7 +539,8 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 		TotalWriteDuration += durationMilliseconds.count();
 		BytesWritten += bytesWritten;
 
-		// Flush the data to the disk
+		// Flush the data to the disk - shouldn't be necessary but
+		// a lot of drivers just lie to us and this seems to help
 		::FlushFileBuffers(hFile);
 
 		if (failOnFirst)
@@ -582,8 +548,6 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			// If it's the first, save part of the generated data for our quick tests
 			if (fileBytesWritten == 0)
 				testFile->SetData((const unsigned char*)&generatedData[0], DataBlockSize);
-
-			// TODO: Re-use the data above instead of using firstGeneratedData
 
 			// We always read and verify the first written data every single time,
 			// as it the most prone to corruption if this device is fake
@@ -594,21 +558,41 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			if (currentLowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 				break;
 
-			// Set file pointer to the start of the file
-			LONG zero = 0;
-			::SetFilePointer(hFile, zero, &zero, FILE_BEGIN);
+			// Okay listen, I don't like closing and re-opening the file either, but fact is,
+			// some fake sticks are way easier to detect if we close and re-open the file
+			// regardless of our flags or forced flushes.
+			{
+				::CloseHandle(hFile);
+
+				hFile = ::CreateFileA(filePath.c_str(), FILE_READ_DATA | FILE_WRITE_DATA, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH, NULL);
+
+				if (hFile == INVALID_HANDLE_VALUE)
+					break;
+			}
 
 			// Re-read and verify the first written data
-			std::vector<unsigned char> fileData(testReadSize);
+			std::vector<unsigned char> fileData(testFile->DataSize);
 			unsigned long bytesRead = 0;
 
 			// Read the block from the file
-			if (!::ReadFile(hFile, fileData.data(), testReadSize, &bytesRead, NULL) || bytesRead != testReadSize)
+			if (!::ReadFile(hFile, fileData.data(), testFile->DataSize, &bytesRead, NULL) || bytesRead != testFile->DataSize)
 				break;
 
 			// Check if the data matches
-			if (memcmp(fileData.data(), firstGeneratedData.data(), testReadSize) != 0)
+			if (memcmp(fileData.data(), &testFile->Data[0], testFile->DataSize) != 0)
 			{
+				RealBytesVerified = BytesWritten;
+
+				// Get near position where it failed - Not very precise, this could be improved
+				for (size_t i = 0; i < chunkSize; i++)
+				{
+					if (fileData.data()[i] != testFile->Data[i])
+					{
+						RealBytesVerified += i;
+						break;
+					}
+				}
+
 				::CloseHandle(hFile);
 				return false;
 			}
@@ -616,7 +600,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			// Restore file pointer to the previous position
 			::SetFilePointer(hFile, currentLowPart, &currentHighPart, FILE_BEGIN);
 
-			BytesVerified += testReadSize;
+			BytesVerified += testFile->DataSize;
 		}
 
 		fileSize -= bytesWritten;
@@ -630,7 +614,9 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 			ProgressCallback(this, (int)State_InProgress, CurrentProgress, BYTES_TO_MB(BytesWritten));
 	}
 
-	::CloseHandle(hFile);
+	if (hFile != INVALID_HANDLE_VALUE)
+		::CloseHandle(hFile);
+
 	return fileBytesWritten;
 }
 
