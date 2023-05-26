@@ -328,6 +328,12 @@ namespace TrueStorageCheck_GUI
 
                             infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("success")}";
                         }
+                        else if(state == (int)CurrentState.Aborted)
+                        {
+                            SetCompletionLabel(CompletionStatus.Failed);
+
+                            infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("aborted")}";
+                        }
                         else
                         {
                             SetCompletionLabel(CompletionStatus.Failed);

@@ -4,8 +4,6 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 // dllmain.cpp : Defines the entry point for the DLL application.
-#include "pch.h"
-
 #include <windows.h>
 #include <vector>
 #include <string>
@@ -19,6 +17,10 @@
 // Lazy me
 #define EXPORT_C extern "C" __declspec(dllexport)
 #define WRAP(expression) { return expression; }
+
+// DLL Version
+#define DLL_VERSION_MAJOR int(0x0)
+#define DLL_VERSION_MINOR int(0x9)
 
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
@@ -133,6 +135,13 @@ EXPORT_C int GetDevices(bool includeLocalDisks, DeviceInfo **devices)
 	return deviceCount;
 }
 
+EXPORT_C int GetMajorVersion() {
+	return DLL_VERSION_MAJOR;
+}
+
+EXPORT_C int GetMinorVersion() {
+	return DLL_VERSION_MINOR;
+}
 
 /// Just in case someone asks "Why didn't you do it in C++/CLI?!"
 /// Because I like my programming languages like I like my coffee. Without unnecessary complexity.
@@ -145,18 +154,19 @@ EXPORT_C DiskTest * DiskTest_Create(char driveLetter, unsigned long long capacit
 }
 
 EXPORT_C void DiskTest_Destroy(DiskTest* instance) {
+
+	instance->Dispose();
 	delete instance;
 }
 
-EXPORT_C bool DiskTest_PerformTest(DiskTest * instance) WRAP(instance->PerformTest())
-EXPORT_C bool DiskTest_PerformDestructiveTest(DiskTest * instance) WRAP(instance->PerformDestructiveTest())
-EXPORT_C bool DiskTest_ForceStopTest(DiskTest * instance) WRAP(instance->ForceStopTest())
-EXPORT_C int DiskTest_GetTestState(DiskTest * instance) WRAP(instance->GetTestState())
-EXPORT_C int DiskTest_GetTestProgress(DiskTest * instance) WRAP(instance->GetTestProgress())
-EXPORT_C int DiskTest_GetLastSuccessfulVerifyPosition(DiskTest * instance) WRAP(instance->GetLastSuccessfulVerifyPosition())
+EXPORT_C bool DiskTest_PerformTest(DiskTest* instance) WRAP(instance->PerformTest())
+EXPORT_C bool DiskTest_PerformDestructiveTest(DiskTest* instance) WRAP(instance->PerformDestructiveTest())
+EXPORT_C bool DiskTest_ForceStopTest(DiskTest* instance) WRAP(instance->ForceStopTest())
+EXPORT_C int DiskTest_GetTestState(DiskTest* instance) WRAP(instance->GetTestState())
+EXPORT_C int DiskTest_GetTestProgress(DiskTest* instance) WRAP(instance->GetTestProgress())
+EXPORT_C int DiskTest_GetLastSuccessfulVerifyPosition(DiskTest* instance) WRAP(instance->GetLastSuccessfulVerifyPosition())
 EXPORT_C double DiskTest_GetAverageWriteSpeed(DiskTest* instance) WRAP(instance->GetAverageWriteSpeed())
 EXPORT_C double DiskTest_GetAverageReadSpeed(DiskTest* instance) WRAP(instance->GetAverageReadSpeed())
 EXPORT_C long DiskTest_GetTimeRemaining(DiskTest* instance) WRAP(instance->GetTimeRemaining())
-
 
 #pragma endregion
