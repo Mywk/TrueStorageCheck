@@ -395,6 +395,9 @@ namespace TrueStorageCheck_GUI
                 {
                     ToggleInteration(true);
                     isScanning = false;
+
+                    if (CanInteract && !IsRunning)
+                        StartButton.IsEnabled = true;
                 });
             });
         }
@@ -558,6 +561,18 @@ namespace TrueStorageCheck_GUI
 
                 AllAvailableSpaceCheckBox.IsChecked = (bool)(MbNumericUpDown.Value == MbNumericUpDown.Maximum || MbNumericUpDown.Value == 0);
             }
+        }
+
+        private void SaveLogToMediaCheckBox_CheckedUnchecked(object sender, RoutedEventArgs e)
+        {
+            if (LastSelectedDevice == null) return;
+
+            bool removeTempFiles = (bool)RemoveTempFilesWhenDoneCheckBox.IsChecked;
+
+            if ((!removeTempFiles && (bool)SaveLogToMediaCheckBox.IsChecked))
+                SaveLogToMediaCheckBox.IsChecked = false;
+
+            SaveLogToMediaCheckBox.IsEnabled = removeTempFiles ? true : false;
         }
     }
 }
