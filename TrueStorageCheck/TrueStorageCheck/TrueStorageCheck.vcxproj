@@ -145,8 +145,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DiskTest.h" />
-    <ClInclude Include="TestFile.h" />
+    <ClInclude Include="DiskTest.hpp" />
+    <ClInclude Include="TestFile.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DiskTest.cpp" />

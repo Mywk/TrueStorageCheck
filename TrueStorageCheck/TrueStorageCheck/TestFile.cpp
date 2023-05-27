@@ -3,7 +3,7 @@
  * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-#include "TestFile.h"
+#include "TestFile.hpp"
 
 TestFile::TestFile(const std::string& path, unsigned long long totalSize) : Path(path), TotalSize(totalSize) {
     BytesWritten  = DataSize = 0;
@@ -31,3 +31,4 @@ void TestFile::SetData(const unsigned char* pData, unsigned long long dataSize) 
     memcpy(&Data[0], pData, dataSize);
 
 }
+

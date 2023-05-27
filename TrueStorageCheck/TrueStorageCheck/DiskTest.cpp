@@ -3,7 +3,7 @@
  * You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/community/eupl/og_page/eupl
  * Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-#include "DiskTest.h"
+#include "DiskTest.hpp"
 
 #include <ctime>
 #include <random>
@@ -19,6 +19,7 @@
 
 // Used for our multi-threading
 #include <thread>
+#include <iostream>
 
 #define BYTES_TO_MB(x) (x / (1024 * 1024))
 
@@ -156,7 +157,20 @@ void DiskTest::CalculateProgress() {
 
 }
 
-bool DiskTest::PerformTest()
+void DiskTest::WriteLogToFile(bool success) {
+
+	std::filesystem::path filePath = Path + "TSC_Log_" + GetReadableDateTime() + ".txt";
+	std::ofstream file(filePath);
+
+	if (file.is_open()) {
+		file << "Total Capacity:\t\t" << MaxCapacity << std::endl;
+		file << "Verified Capacity:\t" << RealBytesVerified << std::endl;
+		file << "Result:\t\t\t\t" << (success == true ? "Success" : (CurrentState == State_Aborted ? "Aborted" : "Failed")) << std::endl;
+		file.close();
+	}
+}
+
+byte DiskTest::PerformTest()
 {
 	// Tests are non re-usable for now
 	if (TestRunning || CurrentState != State_Waiting) return false;
@@ -281,10 +295,10 @@ bool DiskTest::PerformTest()
 	{
 		// Delete any temporary data that can eventually already exist, then flush the changes
 		this->RemoveDirectory(Path + tempDirectoryPath);
-	}
-	else if (WriteLogFile)
-	{
-		// TODO
+
+		// Write log file if needed
+		if (WriteLogFile)
+			WriteLogToFile(ret);
 	}
 
 	RecalculateAverageSpeeds();
@@ -334,7 +348,7 @@ bool DiskTest::InternalVerifyTestFile(const std::string& filePath, unsigned long
 		chunkSize = chunkSize - (chunkSize % DataBlockSize);
 
 		// Re-generate the data for this chunk
-		std::vector<unsigned char> generatedData(chunkSize); 
+		std::vector<unsigned char> generatedData(chunkSize);
 
 		if (pData != nullptr)
 			memcpy(&generatedData[0], pData, chunkSize);
@@ -410,14 +424,46 @@ bool DiskTest::VerifyTestFile(const std::string& filePath, bool updateRealBytes)
 	return(InternalVerifyTestFile(filePath, 0, updateRealBytes));
 }
 
+byte DiskTest::IsDiskEmpty()
+{
+	bool isEmpty = std::filesystem::is_empty(Path);
 
-bool DiskTest::PerformDestructiveTest()
+	if (!isEmpty)
+	{
+		int entryCount = 0;
+
+		try
+		{
+			// This could be improved but it's good enough for now
+			for (const auto& entry : std::filesystem::recursive_directory_iterator(Path, std::filesystem::directory_options::skip_permission_denied))
+			{
+				// Skip folders or anything starting with "System Volume Information"
+				if (entry.is_directory() || entry.path().wstring().find(L"System Volume Information") != std::wstring::npos)				continue;
+
+				entryCount++;
+				break; // Exit the loop after finding at least one entry
+			}
+
+			isEmpty = (entryCount == 0);
+		}
+		catch (const std::exception&)
+		{
+			isEmpty = false;
+		}
+
+	}
+
+	return static_cast<byte>(isEmpty);
+}
+
+
+byte DiskTest::PerformDestructiveTest()
 {
 	// TODO: Format the target disk, use all available space and perform test
 	return false;
 }
 
-bool DiskTest::ForceStopTest()
+byte DiskTest::ForceStopTest()
 {
 	// Force stop if it's running
 	if (TestRunning)
@@ -452,10 +498,10 @@ double DiskTest::GetAverageWriteSpeed()
 
 unsigned long long DiskTest::GetLastSuccessfulVerifyPosition()
 {
-	return BytesVerified;
+	return RealBytesVerified;
 }
 
-std::string DiskTest::GenerateTestFileName()
+std::string DiskTest::GetReadableDateTime()
 {
 	time_t now;
 	time(&now);
@@ -464,8 +510,18 @@ std::string DiskTest::GenerateTestFileName()
 
 	std::stringstream ss;
 
-	// Generate a random test file name using hhmmss + something random, should be unique enough for our tests
-	ss << 1900 + ltm.tm_year << 1 + ltm.tm_mon << ltm.tm_mday << ltm.tm_hour << ltm.tm_min << ltm.tm_sec << rand() % 1000 << ".tsc";
+	// Generate a random test file name using YYMMDD_hhmmss 
+	ss << 1900 + ltm.tm_year << 1 + ltm.tm_mon << ltm.tm_mday << "_" << ltm.tm_hour << ltm.tm_min << ltm.tm_sec;
+
+	return ss.str();
+}
+
+std::string DiskTest::GenerateTestFileName()
+{
+	std::stringstream ss;
+
+	// Generate a random test file name using YYMMDDhhmmss + something random, should be unique enough for our tests
+	ss << GetReadableDateTime() << rand() % 1000 << ".tsc";
 
 	return ss.str();
 }
@@ -551,7 +607,7 @@ unsigned long DiskTest::WriteAndVerifyTestFile(const std::string& filePath, unsi
 
 			// We always read and verify the first written data every single time,
 			// as it the most prone to corruption if this device is fake
-			
+
 			// Save current position
 			LONG currentHighPart = 0;
 			DWORD currentLowPart = ::SetFilePointer(hFile, 0, &currentHighPart, FILE_CURRENT);
@@ -646,7 +702,7 @@ bool DiskTest::GetDiskSpace(const std::string& path, unsigned long long* totalSp
 		return true;
 }
 
-bool DiskTest::IsDriveFull()
+byte DiskTest::IsDriveFull()
 {
 	unsigned long long totalSpace, freeSpace;
 
@@ -676,6 +732,9 @@ unsigned long DiskTest::GetTimeRemaining()
 	// Assume double the write speed as default
 	if (timeRemainingForReadingSec == 0)
 		timeRemainingForReadingSec = AverageWriteSpeed == 0 ? 0 : ((CapacityToTest) / (1024 * 1024)) / (AverageWriteSpeed * 2);
+
+	if (timeRemainingForWritingSec <= 0 || timeRemainingForReadingSec <= 0)
+		return 0;
 
 	return timeRemainingForWritingSec + timeRemainingForReadingSec;
 }

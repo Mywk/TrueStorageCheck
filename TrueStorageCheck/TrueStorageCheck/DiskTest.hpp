@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "TestFile.h"
+#include "TestFile.hpp"
 
 class DiskTest
 {
@@ -33,19 +33,19 @@ public:
 	/// Starts the normal disk test, this uses all of the parameters given on DiskTest
 	/// </summary>
 	/// <returns>Test started successfully</returns>
-	bool PerformTest();
+	byte PerformTest();
 
 	/// <summary>
 	/// Starts the destructive disk test, this will format the whole device before testing
 	/// </summary>
 	/// <returns>Test started successfully</returns>
-	bool PerformDestructiveTest();
+	byte PerformDestructiveTest();
 
 	/// <summary>
 	/// Stops the disk test
 	/// </summary>
 	/// <returns>Test stopped successfully</returns>
-	bool ForceStopTest();
+	byte ForceStopTest();
 
 	/// <summary>
 	/// Gets the test state
@@ -64,7 +64,7 @@ public:
 	/// </summary>
 	/// <returns>Speed/p/second</returns>
 	double GetAverageReadSpeed();
-	
+
 	/// <summary>
 	/// Gets the average write speed.
 	/// </summary>
@@ -78,10 +78,16 @@ public:
 	unsigned long long GetLastSuccessfulVerifyPosition();
 
 	/// <summary>
+	/// Returns a string formatted as YYMMDDhhmmss
+	/// </summary>
+	/// <returns></returns>
+	std::string GetReadableDateTime();
+
+	/// <summary>
 	/// Checks if disk is full.
 	/// </summary>
 	/// <returns>disk full state</returns>
-	bool IsDriveFull();
+	byte IsDriveFull();
 
 	/// <summary>
 	/// Gets the remaining time in seconds
@@ -90,6 +96,13 @@ public:
 	/// This is just an estimate
 	/// </remarks>
 	unsigned long GetTimeRemaining();
+
+	/// <summary>
+	/// Checks if the disk is empty
+	/// </summary>
+	/// <returns></returns>
+	byte IsDiskEmpty();
+
 
 	/// <summary>
 	/// Call before deleting
@@ -255,5 +268,13 @@ private:
 	/// Used to updated CurrentProgress, MbWritten, MbToVerify values
 	/// </summary>
 	void CalculateProgress();
+
+	/// <summary>
+	/// Writes log file to tested disk
+	/// </summary>
+	/// <param name="totalCapacity"></param>
+	/// <param name="verifiedCapacity"></param>
+	/// <param name="successful"></param>
+	void WriteLogToFile(bool success);
 
 };

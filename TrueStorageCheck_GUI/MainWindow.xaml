@@ -147,7 +147,7 @@
                 <!-- Multi device check -->
                 <Border x:Name="MultipleDeviceBorder" VerticalAlignment="Top" Padding="5" BorderThickness="1" BorderBrush="#CCC" Opacity="0.7" >
                     <Expander Name="MultipleDeviceExpander" Header="{local:LocalizedString Key=multi_device}" Expanded="Expander_Changed" Collapsed="Expander_Changed" IsExpanded="False" >
-                        <Border BorderThickness="1" Margin="10" MinHeight="100" VerticalAlignment="Center" >
+                        <Border BorderThickness="1" Margin="10" MinHeight="40" VerticalAlignment="Center" >
                             <StackPanel Margin="10 0 10 0" VerticalAlignment="Center" >
                                 <Grid IsEnabled="False" Name="AllProgressGrid" HorizontalAlignment="Stretch" VerticalAlignment="Top" Visibility="Collapsed" >
                                     <Grid.ColumnDefinitions>

@@ -12,7 +12,7 @@
 #include <devguid.h>
 #include <initguid.h>
 #include <cfgmgr32.h>
-#include "DiskTest.h"
+#include "DiskTest.hpp"
 
 // Lazy me
 #define EXPORT_C extern "C" __declspec(dllexport)
@@ -20,7 +20,7 @@
 
 // DLL Version
 #define DLL_VERSION_MAJOR int(0x0)
-#define DLL_VERSION_MINOR int(0x9)
+#define DLL_VERSION_MINOR int(0x10)
 
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
@@ -107,7 +107,7 @@ EXPORT_C int GetDevices(bool includeLocalDisks, DeviceInfo **devices)
 			DWORD deviceType = GetDriveType(driveLetterPath);
 
 			// Skip local disks if includeLocalDisks is false
-			if (!includeLocalDisks && (deviceType == DRIVE_FIXED || deviceType == DRIVE_UNKNOWN || deviceType == DRIVE_NO_ROOT_DIR))
+			if (!includeLocalDisks && (deviceType == DRIVE_FIXED || deviceType == DRIVE_UNKNOWN || deviceType == DRIVE_NO_ROOT_DIR) || device.driveLetter == 'C' || device.driveLetter == 'c')
 				continue;
 
 			// Get the disk capacity
@@ -159,14 +159,16 @@ EXPORT_C void DiskTest_Destroy(DiskTest* instance) {
 	delete instance;
 }
 
-EXPORT_C bool DiskTest_PerformTest(DiskTest* instance) WRAP(instance->PerformTest())
-EXPORT_C bool DiskTest_PerformDestructiveTest(DiskTest* instance) WRAP(instance->PerformDestructiveTest())
-EXPORT_C bool DiskTest_ForceStopTest(DiskTest* instance) WRAP(instance->ForceStopTest())
+// Bool seems to be non-blittable type and can't be used as a return value
+EXPORT_C byte DiskTest_PerformTest(DiskTest* instance) WRAP(instance->PerformTest())
+EXPORT_C byte DiskTest_PerformDestructiveTest(DiskTest* instance) WRAP(instance->PerformDestructiveTest())
+EXPORT_C byte DiskTest_ForceStopTest(DiskTest* instance) WRAP(instance->ForceStopTest())
 EXPORT_C int DiskTest_GetTestState(DiskTest* instance) WRAP(instance->GetTestState())
 EXPORT_C int DiskTest_GetTestProgress(DiskTest* instance) WRAP(instance->GetTestProgress())
 EXPORT_C int DiskTest_GetLastSuccessfulVerifyPosition(DiskTest* instance) WRAP(instance->GetLastSuccessfulVerifyPosition())
 EXPORT_C double DiskTest_GetAverageWriteSpeed(DiskTest* instance) WRAP(instance->GetAverageWriteSpeed())
 EXPORT_C double DiskTest_GetAverageReadSpeed(DiskTest* instance) WRAP(instance->GetAverageReadSpeed())
 EXPORT_C long DiskTest_GetTimeRemaining(DiskTest* instance) WRAP(instance->GetTimeRemaining())
+EXPORT_C byte DiskTest_IsDiskEmpty(DiskTest* instance) WRAP(instance->IsDiskEmpty())
 
 #pragma endregion

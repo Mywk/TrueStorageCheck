@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DiskTest.h">
+    <ClInclude Include="DiskTest.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TestFile.h">
+    <ClInclude Include="TestFile.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
