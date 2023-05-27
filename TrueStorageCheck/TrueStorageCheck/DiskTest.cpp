@@ -165,10 +165,11 @@ void DiskTest::WriteLogToFile(bool success) {
 	if (file.is_open()) {
 		file << "Total Capacity:\t\t" << MaxCapacity << std::endl;
 		file << "Verified Capacity:\t" << RealBytesVerified << std::endl;
-		file << "Result:\t\t\t\t" << (success == true ? "Success" : (CurrentState == State_Aborted ? "Aborted" : "Failed")) << std::endl;
+		file << "Result:\t\t\t" << (success == true ? "Success" : (CurrentState == State_Aborted ? "Aborted" : "Failed")) << std::endl;
 		file.close();
 	}
 }
+
 
 byte DiskTest::PerformTest()
 {
