@@ -144,6 +144,12 @@
   <data name="device" xml:space="preserve">
     <value>Gerät</value>
   </data>
+  <data name="device_seems_fake" xml:space="preserve">
+    <value>Speicherprüfung fehlgeschlagen. Validierung nicht erfolgreich.</value>
+  </data>
+  <data name="device_seems_legit" xml:space="preserve">
+    <value>Integritätsprüfung des Gerätespeichers erfolgreich abgeschlossen.</value>
+  </data>
   <data name="device_test" xml:space="preserve">
     <value>Gerättest</value>
   </data>
@@ -192,6 +198,12 @@ Stellen Sie sicher, dass Sie alle Dateien korrekt heruntergeladen und extrahiert
   </data>
   <data name="new_update_available" xml:space="preserve">
     <value>Es ist ein Update verfügbar.</value>
+  </data>
+  <data name="not_empty" xml:space="preserve">
+    <value>Dieses Gerät scheint nicht leer zu sein. Sie können es trotzdem testen, es besteht jedoch die Möglichkeit, dass nicht alle Fehler erkannt werden.
+Es wird empfohlen, das Gerät vor dem Test zu einer einzelnen Partition zu formatieren.
+
+Möchten Sie fortfahren?</value>
   </data>
   <data name="options" xml:space="preserve">
     <value>Optionen</value>

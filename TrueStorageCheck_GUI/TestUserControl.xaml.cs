@@ -34,24 +34,21 @@ namespace TrueStorageCheck_GUI
 
         private const string DLL_STR = MainWindow.DLL_STR;
 
+        // Note: Seems to be non-blittable type and can't be used as a return value 
+
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern IntPtr DiskTest_Create(char driveLetter, ulong capacityToTest, bool stopOnFirstError, bool deleteTempFiles, bool writeLogFile, ProgressDelegate callback);
 
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern bool DiskTest_PerformTest(IntPtr diskTestInstance);
-
+        static extern byte DiskTest_PerformTest(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern int DiskTest_GetTestState(IntPtr diskTestInstance);
-
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern int DiskTest_GetTestProgress(IntPtr diskTestInstance);
-
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern bool DiskTest_ForceStopTest(IntPtr diskTestInstance);
-
+        static extern byte DiskTest_ForceStopTest(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern bool DiskTest_Destroy(IntPtr diskTestInstance);
-
+        static extern byte DiskTest_Destroy(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern ulong DiskTest_GetLastSuccessfulVerifyPosition(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
@@ -60,6 +57,8 @@ namespace TrueStorageCheck_GUI
         static extern double DiskTest_GetAverageReadSpeed(IntPtr diskTestInstance);
         [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
         static extern long DiskTest_GetTimeRemaining(IntPtr diskTestInstance);
+        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
+        static extern byte DiskTest_IsDiskEmpty(IntPtr diskTestInstance);
 
         private string _testName;
         private string _currentInfo;
@@ -90,7 +89,7 @@ namespace TrueStorageCheck_GUI
                 }
             }
         }
-        
+
         public SolidColorBrush HeaderBackground
         {
             get { return _headerBackground; }
@@ -159,44 +158,66 @@ namespace TrueStorageCheck_GUI
         DateTime TestStartedTime;
 
         /// <summary>
+        /// Stops running test
+        /// </summary>
+        public void StopTest()
+        {
+            if (DiskTest != IntPtr.Zero)
+            {
+                _ = Task.Run(() =>
+                {
+                    // Force stop the test
+                    MainWindow.Instance.AddLog(this, "Forced test stop.");
+
+                    if (DiskTest_ForceStopTest(DiskTest) == 0x01)
+                    {
+                        DiskTest = IntPtr.Zero;
+                    }
+
+                }).ContinueWith(t =>
+                {
+                    if (DiskTest == IntPtr.Zero)
+                    {
+                        if (ProgressHandler == null)
+                        {
+                            IsRunning = false;
+                            RestoreStartButton();
+                        }
+                        else
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                StartButton.IsEnabled = false;
+                                ToggleInteration(false);
+                            });
+                        }
+                    }
+                });
+            }
+        }
+
+        private string startButtonText = "start";
+
+        public string StartButtonText
+        {
+            get { 
+                return MainWindow.LanguageResource.GetString(startButtonText);
+            }
+            set
+            {
+                startButtonText = value;
+                OnPropertyChanged(nameof(StartButtonText));
+            }
+        }
+
+        /// <summary>
         /// Starts the device test
         /// </summary>
         public void StartTest()
         {
             if (IsRunning)
             {
-                if (DiskTest != IntPtr.Zero)
-                {
-                    _ = Task.Run(() =>
-                    {
-                        // Force stop the test
-                        MainWindow.Instance.AddLog(this, "Forced test stop.");
-
-                        if (DiskTest_ForceStopTest(DiskTest))
-                        {
-                            DiskTest = IntPtr.Zero;
-                        }
-
-                    }).ContinueWith(t =>
-                    {
-                        if (DiskTest == IntPtr.Zero)
-                        {
-                            if (ProgressHandler == null)
-                            {
-                                IsRunning = false;
-                                RestoreStartButton();
-                            }
-                            else
-                            {
-                                Dispatcher.Invoke(() =>
-                                {
-                                    StartButton.IsEnabled = false;
-                                    ToggleInteration(false);
-                                });
-                            }
-                        }
-                    });
-                }
+                StopTest();
                 return;
             }
 
@@ -204,9 +225,8 @@ namespace TrueStorageCheck_GUI
 
             TestStartedTime = DateTime.Now;
 
+            UpdateStartButton(false);
             ToggleInteration(false);
-
-            StartButton.Content = MainWindow.LanguageResource.GetString("stop");
 
             SetCompletionLabel(CompletionStatus.Unknown);
             ProgressBar.Value = 0;
@@ -217,44 +237,81 @@ namespace TrueStorageCheck_GUI
             bool saveTextLog = (bool)SaveLogToMediaCheckBox.IsChecked;
             int mbToTest = (bool)AllAvailableSpaceCheckBox.IsChecked ? 0 : MbNumericUpDown.Value;
 
-            _ = Task.Run(() =>
+            bool canTest = true;
+
+            // Just in case
+            if (DiskTest != IntPtr.Zero)
             {
-                // Just in case
-                if (DiskTest != IntPtr.Zero)
+                if (DiskTest_ForceStopTest(DiskTest) == 0x01)
+                    DiskTest = IntPtr.Zero;
+                else
+                    return;
+            }
+
+            DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, ProgressHandler);
+
+            bool isDiskEmpty = DiskTest_IsDiskEmpty(DiskTest) == 0x01;
+            if (!isDiskEmpty)
+            {
+                string newLine = Environment.NewLine;
+
+                string message = MainWindow.LanguageResource.GetString("not_empty");
+                string caption = MainWindow.LanguageResource.GetString("warning");
+
+                MessageBoxResult result = MessageBox.Show(message, caption, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
                 {
-                    if (DiskTest_ForceStopTest(DiskTest))
-                        DiskTest = IntPtr.Zero;
-                    else
-                        return;
-                }
+                    canTest = false;
 
-
-                DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, ProgressHandler);
-
-                bool startResult = DiskTest_PerformTest(DiskTest);
-
-                if (!startResult)
-                {
                     if (DiskTest != IntPtr.Zero)
                     {
-                        var lastSuccessfulWritePosition = DiskTest_GetLastSuccessfulVerifyPosition(DiskTest);
-                        MainWindow.Instance.AddLog(this, MainWindow.LanguageResource.GetString("last_successful_write") + ": " + lastSuccessfulWritePosition);
+                        DiskTest_Destroy(DiskTest);
+                        DiskTest = IntPtr.Zero;
                     }
-                }
 
-                if (DiskTest != IntPtr.Zero)
-                {
-                    DiskTest_Destroy(DiskTest);
-                    DiskTest = IntPtr.Zero;
-                }
+                    SetCompletionLabel(CompletionStatus.Failed);
+                    InfoContentTextBlock.Text = MainWindow.LanguageResource.GetString("aborted");
 
-            }).ContinueWith(t =>
+                    IsRunning = false;
+                    RestoreStartButton();
+                }
+            }
+
+            if (canTest)
             {
-                IsRunning = false;
-                RestoreStartButton();
-            });
+                _ = Task.Run(() =>
+                {
+                    bool startResult = DiskTest_PerformTest(DiskTest) == 0x01;
+
+                    if (!startResult)
+                    {
+                        if (DiskTest != IntPtr.Zero)
+                        {
+                            var lastSuccessfulWritePosition = DiskTest_GetLastSuccessfulVerifyPosition(DiskTest);
+                            MainWindow.Instance.AddLog(this, MainWindow.LanguageResource.GetString("last_successful_write") + ": " + lastSuccessfulWritePosition);
+                        }
+                    }
+
+                    if (DiskTest != IntPtr.Zero)
+                    {
+                        DiskTest_Destroy(DiskTest);
+                        DiskTest = IntPtr.Zero;
+                    }
+
+                }).ContinueWith(t =>
+                {
+                    IsRunning = false;
+                    RestoreStartButton();
+                });
+
+            }
         }
 
+        private void UpdateStartButton(bool start)
+        {
+            StartButtonText = start ? "start" : "stop";
+        }
 
         protected void OnPropertyChanged(string propertyName)
         {
@@ -289,34 +346,45 @@ namespace TrueStorageCheck_GUI
 
                 string newLine = Environment.NewLine;
 
+                // Quite a bit QND but will do for now
                 Dispatcher.Invoke(() =>
                 {
-                    string stateStr = $"{MainWindow.LanguageResource.GetString("current_state")}\t\t{GetStateStringFromCurrentState((CurrentState)state)}";
-                    MainWindow.Instance.AddLog(this, stateStr);
+                    string stateStr = GetStateStringFromCurrentState((CurrentState)state);
+                    MainWindow.Instance.AddLog(this, $"{MainWindow.LanguageResource.GetString("current_state")} {stateStr}");
                     MainWindow.Instance.AddLog(this, $"Mb:\t{mbChanged}");
 
                     ProgressBar.Value = progress;
 
-                    string infoStr = stateStr;
+                    string infoStr = string.Format("{0,-24}\t{1}", MainWindow.LanguageResource.GetString("current_state"), stateStr);
+                    string newLine = Environment.NewLine;
 
                     if (averageReadSpeed != 0 && !double.IsInfinity(averageReadSpeed))
-                        infoStr += $"{newLine}{averageReadSpeed.ToString($"{MainWindow.LanguageResource.GetString("avg_read")} \t\t0.00 MB/s")}";
+                    {
+                        string averageReadLabel = $"{MainWindow.LanguageResource.GetString("avg_read")}";
+                        string averageReadValue = averageReadSpeed.ToString("0.00 MB/s");
+                        infoStr += $"{newLine}{string.Format("{0,-24}\t{1}", averageReadLabel, averageReadValue)}";
+                    }
 
                     if (averageWriteSpeed != 0 && !double.IsInfinity(averageWriteSpeed))
-                        infoStr += $"{newLine}{averageWriteSpeed.ToString($"{MainWindow.LanguageResource.GetString("avg_write")}\t\t 0.00 MB/s")}";
+                    {
+                        string averageWriteLabel = $"{MainWindow.LanguageResource.GetString("avg_write")}";
+                        string averageWriteValue = averageWriteSpeed.ToString("0.00 MB/s");
+                        infoStr += $"{newLine}{string.Format("{0,-24}\t{1}", averageWriteLabel, averageWriteValue)}";
+                    }
 
                     // Elapsed time
                     TimeSpan delta = DateTime.Now - TestStartedTime;
-                    string formattedTime = $"{newLine}{MainWindow.LanguageResource.GetString("elapsed_time")}\t\t{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
-                    infoStr += formattedTime;
+                    string elapsedLabel = $"{MainWindow.LanguageResource.GetString("elapsed_time")}";
+                    string elapsedValue = $"{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
+                    infoStr += $"{newLine}{string.Format("{0,-24}\t{1}", elapsedLabel, elapsedValue)}";
 
                     if (remainingTimeInSeconds != 0)
                     {
                         delta = TimeSpan.FromSeconds(remainingTimeInSeconds);
-                        formattedTime = $"{newLine}{MainWindow.LanguageResource.GetString("remaining_time")}\t{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
-                        infoStr += formattedTime;
+                        string remainingLabel = $"{MainWindow.LanguageResource.GetString("remaining_time")}";
+                        string remainingValue = $"{delta.Hours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
+                        infoStr += $"{newLine}{string.Format("{0,-24}\t{1}", remainingLabel, remainingValue)}";
                     }
-
 
                     currentState = (CurrentState)state;
 
@@ -326,24 +394,37 @@ namespace TrueStorageCheck_GUI
                         {
                             SetCompletionLabel(CompletionStatus.Success);
 
-                            infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("success")}";
+                            string successLabel = $"{MainWindow.LanguageResource.GetString("success")}";
+                            string deviceLegitLabel = $"{MainWindow.LanguageResource.GetString("device_seems_legit")}";
+                            infoStr += $"{newLine}{newLine}{successLabel}. {deviceLegitLabel}";
                         }
-                        else if(state == (int)CurrentState.Aborted)
+                        else if (state == (int)CurrentState.Aborted)
                         {
                             SetCompletionLabel(CompletionStatus.Failed);
 
-                            infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("aborted")}";
+                            string abortedLabel = $"{MainWindow.LanguageResource.GetString("aborted")}";
+                            infoStr += $"{newLine}{newLine}{abortedLabel}";
                         }
                         else
                         {
                             SetCompletionLabel(CompletionStatus.Failed);
 
+                            string errorLabel = $"{MainWindow.LanguageResource.GetString("error")}";
                             var lastSuccessfulVerifiedByte = DiskTest_GetLastSuccessfulVerifyPosition(instance);
 
                             if (lastSuccessfulVerifiedByte > 0)
-                                infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("failed_after_byte")}{newLine}{lastSuccessfulVerifiedByte}";
+                            {
+                                string failedByteLabel = $"{MainWindow.LanguageResource.GetString("failed_after_byte")}";
+                                infoStr += $"{newLine}{newLine}{errorLabel}. {failedByteLabel}: {lastSuccessfulVerifiedByte}{newLine}";
+
+                            }
                             else
-                                infoStr += $"{newLine}{newLine}{MainWindow.LanguageResource.GetString("error")}";
+                            {
+                                infoStr += $"{newLine}{newLine}{errorLabel}. ";
+                            }
+
+                            if (state != (int)CurrentState.Aborted)
+                                infoStr += $"{MainWindow.LanguageResource.GetString("device_seems_fake")}";
                         }
 
                         UpdateCurrentInfo();
@@ -354,7 +435,7 @@ namespace TrueStorageCheck_GUI
                     else
                         CurrentInfo = $"{progress}%";
 
-                    InfoContentLabel.Content = infoStr;
+                    InfoContentTextBlock.Text = infoStr;
                 });
             };
         }
@@ -448,7 +529,7 @@ namespace TrueStorageCheck_GUI
 
                     MbLabel.Content = capacityInMb.ToString() + " MB";
 
-                    if(CanInteract && capacityInMb > 0)
+                    if (CanInteract && capacityInMb > 0)
                         StartButton.IsEnabled = true;
 
                     canTest = true;
@@ -484,7 +565,7 @@ namespace TrueStorageCheck_GUI
         {
             Dispatcher.Invoke(() =>
             {
-                StartButton.Content = MainWindow.LanguageResource.GetString("start");
+                UpdateStartButton(true);
                 ToggleInteration(true);
                 StartButton.IsEnabled = true;
             });
@@ -537,7 +618,23 @@ namespace TrueStorageCheck_GUI
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+
+            Binding binding = new Binding();
+            binding.Source = this;
+            binding.Path = new PropertyPath("StartButtonText");
+            binding.NotifyOnSourceUpdated = true;
+
+            // This was a multi-binding but it was overkill
+            LocalizedStringExtension.LanguageChanged += LocalizedStringExtension_LanguageChanged;
+
+            BindingOperations.SetBinding(StartButton, Button.ContentProperty, binding);
+
             UpdateDeviceSourceList();
+        }
+
+        private void LocalizedStringExtension_LanguageChanged(object sender, EventArgs e)
+        {
+            StartButtonText = startButtonText;
         }
 
         private void ShowLocalCheckBox_CheckedUnchecked(object sender, RoutedEventArgs e)
@@ -556,7 +653,7 @@ namespace TrueStorageCheck_GUI
 
             if (MbNumericUpDown.Maximum != 0)
             {
-                if(MbNumericUpDown.Value > MbNumericUpDown.Maximum)
+                if (MbNumericUpDown.Value > MbNumericUpDown.Maximum)
                     MbNumericUpDown.Value = MbNumericUpDown.Maximum;
 
                 AllAvailableSpaceCheckBox.IsChecked = (bool)(MbNumericUpDown.Value == MbNumericUpDown.Maximum || MbNumericUpDown.Value == 0);

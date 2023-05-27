@@ -169,7 +169,7 @@ namespace TrueStorageCheck_GUI
 
         private ObservableCollection<Language> LanguageList = new();
 
-        BackgroundWorker LogsWorker = new();
+        BackgroundWorker MainWorker = new();
 
         public MainWindow()
         {
@@ -195,8 +195,8 @@ namespace TrueStorageCheck_GUI
                 LanguagesComboBox.SelectedItem = selectedLanguage;
                 MainGrid.IsEnabled = false;
 
-                LogsWorker.DoWork += LogsWorker_DoWork;
-                LogsWorker.RunWorkerAsync();
+                MainWorker.DoWork += MainWorker_DoWork;
+                MainWorker.RunWorkerAsync();
             }
             catch (Exception ex)
             {
@@ -208,15 +208,38 @@ namespace TrueStorageCheck_GUI
 
         private bool IsClosing = false;
 
-        private void LogsWorker_DoWork(object sender, DoWorkEventArgs e)
+        private async void MainWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             try
             {
-            while (!IsClosing)
-            {
-                UpdateLogs();
-                System.Threading.Thread.Sleep(5000);
-            }
+                while (!IsClosing)
+                {
+                    UpdateLogs();
+
+                    for (int i = 0; i < 100; i++)
+                    {
+                        if (IsClosing)
+                            break;
+
+                        System.Threading.Thread.Sleep(50);
+                    }
+                }
+
+                // Wait for all tests to stop, wait up to 5 seconds, otherwise exit anyway
+                for (int i = 0; i < 100; i++)
+                {
+                    int runningCount = (await GetTestUserControlsAsync(true)).Count;
+
+                    if (runningCount == 0)
+                        break;
+
+                    System.Threading.Thread.Sleep(50);
+                }
+
+                // Pretty eh? :3
+                if(IsClosing)
+                    Environment.Exit(0);
+
             }
             catch (Exception ex)
             {
@@ -442,16 +465,23 @@ namespace TrueStorageCheck_GUI
             BottomLabel_OnMouseLeftButtonDown(sender, e);
         }
 
-        private void MainWindow_OnClosing(object sender, CancelEventArgs e)
+        private async void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
-            if (isWorking)
+            if (IsClosing)
+                return;
+
+            e.Cancel = true;
+
+            if (await AnyTestInProgressAsync())
             {
                 if (MessageBox.Show(LanguageResource.GetString("closing_analyzing_confirm"), LanguageResource.GetString("warning"), MessageBoxButton.YesNo) == MessageBoxResult.No)
                 {
-                    e.Cancel = true;
                     return;
                 }
             }
+
+            foreach (var uc in await GetTestUserControlsAsync())
+                uc.StopTest();
 
             IsClosing = true;
         }
@@ -598,23 +628,77 @@ namespace TrueStorageCheck_GUI
                 await CheckForUpdatesAsync();
         }
 
-        private void StartAllButton_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Gets all open tests
+        /// </summary>
+        /// <remarks>
+        /// Only returns tests with a valid selected device
+        /// </remarks>
+        /// <returns></returns>
+        private async Task<List<TestUserControl>> GetTestUserControlsAsync(bool onlyRunning = false)
         {
-            // Very QND, needs to be improved!!!
-            List<Device> testDevices = new();
+            List<TestUserControl> testDevices = new();
 
-            foreach (var testUserControl in DeviceTestTabControl.Items)
+            await Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (typeof(TestUserControl).Equals((testUserControl as TabItem).Content.GetType()))
+                foreach (var testUserControl in DeviceTestTabControl.Items)
                 {
-                    var uc = (TestUserControl)(testUserControl as TabItem).Content;
-                    if (uc != null)
+                    if (typeof(TestUserControl).Equals((testUserControl as TabItem).Content.GetType()))
                     {
-                        if (!testDevices.Any(td => td.DriveLetter == uc.LastSelectedDevice.DriveLetter || td.Path == uc.LastSelectedDevice.Path))
-                            uc.StartTest();
+                        var uc = (TestUserControl)(testUserControl as TabItem).Content;
+                        if (uc != null && uc.LastSelectedDevice != null && (!onlyRunning || (onlyRunning && uc.IsRunning)))
+                            testDevices.Add(uc);
                     }
                 }
+            }));
+
+
+            return testDevices;
+        }
+
+
+        /// <summary>
+        /// Returns if any test are currently in progress
+        /// </summary>
+        /// <remarks>
+        /// This should be improved, there are better ways to do this
+        /// </remarks>
+        /// <returns></returns>
+        private async Task<bool> AnyTestInProgressAsync()
+        {
+            bool inProgress = false;
+
+            foreach (var uc in await GetTestUserControlsAsync())
+            {
+                if(uc.IsRunning)
+                {
+                    inProgress = true;
+                    break;
+                }
             }
+
+            return inProgress;
+        }
+
+        /// <summary>
+        /// Starts all tests
+        /// </summary>
+        /// <remarks>
+        /// This should be improved, there are better ways to do this
+        /// </remarks>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void StartAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            StartAllButton.IsEnabled = false;
+
+            foreach (var uc in await GetTestUserControlsAsync())
+            {
+                if (!uc.IsRunning)
+                    uc.StartTest();
+            }
+
+            StartAllButton.IsEnabled = AllProgressGrid.IsEnabled = DeviceTestTabControl.Items.Count > 2;
         }
 
         private void ClearLogButton_Click(object sender, RoutedEventArgs e)

@@ -144,6 +144,12 @@
   <data name="device" xml:space="preserve">
     <value>Dispositivo</value>
   </data>
+  <data name="device_seems_fake" xml:space="preserve">
+    <value>La comprobación de almacenamiento falló. Validación no exitosa.</value>
+  </data>
+  <data name="device_seems_legit" xml:space="preserve">
+    <value>La comprobación de integridad del almacenamiento del dispositivo se completó correctamente.</value>
+  </data>
   <data name="device_test" xml:space="preserve">
     <value>Prueba de Dispositivo</value>
   </data>
@@ -191,6 +197,12 @@
   </data>
   <data name="new_update_available" xml:space="preserve">
     <value>Hay una actualización disponible.</value>
+  </data>
+  <data name="not_empty" xml:space="preserve">
+    <value>Este dispositivo no parece estar vacío. Puede probarlo de todos modos, pero existe la posibilidad de que no encuentre todos los errores.
+Se recomienda formatear el dispositivo en una sola partición antes de realizar la prueba.
+
+¿Desea continuar?</value>
   </data>
   <data name="options" xml:space="preserve">
     <value>Opciones</value>

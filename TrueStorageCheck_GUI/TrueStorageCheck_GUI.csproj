@@ -9,7 +9,7 @@
     <Platforms>AnyCPU;x64;x86</Platforms>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <PackageIcon>icon.png</PackageIcon>
-    <Version>0.8</Version>
+    <Version>0.9</Version>
     <AssemblyVersion></AssemblyVersion>
     <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>

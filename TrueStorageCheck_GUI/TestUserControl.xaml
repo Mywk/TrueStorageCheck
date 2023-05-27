@@ -81,7 +81,7 @@
                 <RowDefinition Height="15" />
                 <RowDefinition Height="25" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="25" />
+                <RowDefinition Height="5" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="10" />
@@ -91,7 +91,7 @@
             <!-- Info -->
             <Label Grid.Row="3" Content="{local:LocalizedString Key=info}" FontWeight="Bold" />
             <Border Grid.Row="4" Margin="5 0 0 0" BorderThickness="0.5" CornerRadius="2" BorderBrush="Gray">
-                <Label Name="InfoContentLabel" />
+                <TextBlock Name="InfoContentTextBlock" TextWrapping="Wrap" />
             </Border>
 
             <Grid Grid.Row="6" HorizontalAlignment="Stretch" Margin="5 0 0 0" >
@@ -105,7 +105,7 @@
                 </Border>
             </Grid>
 
-            <Button x:Name="StartButton" Grid.Row="7" Margin="5 0 0 0" Content="{local:LocalizedString Key=start}" Click="StartButton_Click" IsEnabled="False" />
+            <Button x:Name="StartButton" Grid.Row="7" Margin="5 0 0 0" Click="StartButton_Click" IsEnabled="False" />
 
         </Grid>
 

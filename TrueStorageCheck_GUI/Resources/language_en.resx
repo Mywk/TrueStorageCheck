@@ -144,6 +144,12 @@
   <data name="device" xml:space="preserve">
     <value>Device</value>
   </data>
+  <data name="device_seems_fake" xml:space="preserve">
+    <value>Storage check failed. Validation unsuccessful.</value>
+  </data>
+  <data name="device_seems_legit" xml:space="preserve">
+    <value>Device storage integrity check passed.</value>
+  </data>
   <data name="device_test" xml:space="preserve">
     <value>Device Test</value>
   </data>
@@ -193,6 +199,12 @@ Make sure you downloaded and extracted all files correctly.</value>
   <data name="new_update_available" xml:space="preserve">
     <value>There is an update available.</value>
   </data>
+  <data name="not_empty" xml:space="preserve">
+    <value>This device does not seem to be empty, you can test it regardless but there's a possibility it will not find all errors.
+It is recommended to format the device to a single partition before testing.
+
+Do you want to continue?</value>
+  </data>
   <data name="options" xml:space="preserve">
     <value>Options</value>
   </data>
@@ -200,7 +212,7 @@ Make sure you downloaded and extracted all files correctly.</value>
     <value>Refresh</value>
   </data>
   <data name="remaining_time" xml:space="preserve">
-    <value>Est. Remaining time</value>
+    <value>Remaining time</value>
   </data>
   <data name="remove_temporary_files" xml:space="preserve">
     <value>Remove temporary files when finished</value>

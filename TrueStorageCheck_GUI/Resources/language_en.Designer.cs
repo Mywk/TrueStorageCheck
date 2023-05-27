@@ -142,6 +142,24 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Storage check failed. Validation unsuccessful..
+        /// </summary>
+        public static string device_seems_fake {
+            get {
+                return ResourceManager.GetString("device_seems_fake", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Device storage integrity check passed..
+        /// </summary>
+        public static string device_seems_legit {
+            get {
+                return ResourceManager.GetString("device_seems_legit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Device Test.
         /// </summary>
         public static string device_test {
@@ -287,6 +305,18 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to This device does not seem to be empty, you can test it regardless but there&apos;s a possibility it will not find all errors.
+        ///It is recommended to format the device to a single partition before testing.
+        ///
+        ///Do you want to continue?.
+        /// </summary>
+        public static string not_empty {
+            get {
+                return ResourceManager.GetString("not_empty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Options.
         /// </summary>
         public static string options {
@@ -305,7 +335,7 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Est. Remaining time.
+        ///   Looks up a localized string similar to Remaining time.
         /// </summary>
         public static string remaining_time {
             get {

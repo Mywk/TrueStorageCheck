@@ -142,6 +142,24 @@ namespace TrueStorageCheck_GUI.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Speicherprüfung fehlgeschlagen. Validierung nicht erfolgreich..
+        /// </summary>
+        public static string device_seems_fake {
+            get {
+                return ResourceManager.GetString("device_seems_fake", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Integritätsprüfung des Gerätespeichers erfolgreich abgeschlossen..
+        /// </summary>
+        public static string device_seems_legit {
+            get {
+                return ResourceManager.GetString("device_seems_legit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Gerättest.
         /// </summary>
         public static string device_test {
@@ -283,6 +301,18 @@ namespace TrueStorageCheck_GUI.Resources {
         public static string new_update_available {
             get {
                 return ResourceManager.GetString("new_update_available", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Dieses Gerät scheint nicht leer zu sein. Sie können es trotzdem testen, es besteht jedoch die Möglichkeit, dass nicht alle Fehler erkannt werden.
+        ///Es wird empfohlen, das Gerät vor dem Test zu einer einzelnen Partition zu formatieren.
+        ///
+        ///Möchten Sie fortfahren?.
+        /// </summary>
+        public static string not_empty {
+            get {
+                return ResourceManager.GetString("not_empty", resourceCulture);
             }
         }
         
