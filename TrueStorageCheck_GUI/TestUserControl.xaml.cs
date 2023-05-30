@@ -20,6 +20,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Management;
 using System.ComponentModel;
+using static TrueStorageCheck_GUI.DiskTest;
 
 namespace TrueStorageCheck_GUI
 {
@@ -28,37 +29,6 @@ namespace TrueStorageCheck_GUI
     /// </summary>
     public partial class TestUserControl : UserControl, INotifyPropertyChanged
     {
-
-        // Define an event for reporting the state and progress
-        public delegate void ProgressDelegate(IntPtr instance, int state, int progress, int mbWritten);
-
-        private const string DLL_STR = MainWindow.DLL_STR;
-
-        // Note: Seems to be non-blittable type and can't be used as a return value 
-
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern IntPtr DiskTest_Create(char driveLetter, ulong capacityToTest, bool stopOnFirstError, bool deleteTempFiles, bool writeLogFile, ProgressDelegate callback);
-
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern byte DiskTest_PerformTest(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern int DiskTest_GetTestState(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern int DiskTest_GetTestProgress(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern byte DiskTest_ForceStopTest(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern byte DiskTest_Destroy(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern ulong DiskTest_GetLastSuccessfulVerifyPosition(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern double DiskTest_GetAverageWriteSpeed(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern double DiskTest_GetAverageReadSpeed(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern long DiskTest_GetTimeRemaining(IntPtr diskTestInstance);
-        [DllImport(DLL_STR, CallingConvention = CallingConvention.Cdecl)]
-        static extern byte DiskTest_IsDiskEmpty(IntPtr diskTestInstance);
 
         private string _testName;
         private string _currentInfo;
@@ -149,8 +119,6 @@ namespace TrueStorageCheck_GUI
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-
-        public event EventHandler DevicesUpdated;
 
         // Keep track of the last selected device
         public Device LastSelectedDevice { get; set; }
@@ -249,6 +217,9 @@ namespace TrueStorageCheck_GUI
             }
 
             DiskTest = DiskTest_Create(LastSelectedDevice.DriveLetter, (ulong)mbToTest, stopOnFirstFailure, removeTempFiles, saveTextLog, ProgressHandler);
+
+            // Delete any older TestFiles
+            DiskTest_DeleteTestFiles(DiskTest);
 
             bool isDiskEmpty = DiskTest_IsDiskEmpty(DiskTest) == 0x01;
             if (!isDiskEmpty)
