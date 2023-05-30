@@ -15,14 +15,11 @@ TrueStorageCheck works similarly to H2testw with some key improvements - it is a
 
 ## TODO
 
-- Log files
-- Multi-threaded data generation
-- Check if drive is empty before testing (GUI)
 - CLI
 
 ## How to Use
 
-[More information, download, demo and FAQ can be found here.](https://mywk.net/software/true-storage-check) (soon)
+[More information, download, demo and FAQ can be found here.](https://mywk.net/software/true-storage-check) (very soon)
 
 ## GUI
 
