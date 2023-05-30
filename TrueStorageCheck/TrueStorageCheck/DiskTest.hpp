@@ -103,6 +103,15 @@ public:
 	/// <returns></returns>
 	byte IsDiskEmpty();
 
+	/// <summary>
+	/// Deletes all test files from the disk
+	/// </summary>
+	/// <warning>
+	/// Deletes the whole TSC_Files directory
+	/// </warning>
+	/// <param name="filePath">Path</param>
+	void DeleteTestFiles();
+
 
 	/// <summary>
 	/// Call before deleting
@@ -132,48 +141,48 @@ private:
 	/// <summary>
 	/// Options
 	/// </summary>
-	bool StopOnFirstError;
-	bool DeleteTempFiles;
-	bool WriteLogFile;
+	bool stopOnFirstError;
+	bool deleteTempFiles;
+	bool writeLogFile;
 
 	/// <summary>
 	/// Progress callback - To report progress
 	/// </summary>
-	ProgressDelegate ProgressCallback;
+	ProgressDelegate progressCallback;
 
 	/// <summary>
 	/// Vector of created files
 	/// </summary>
-	std::vector<TestFile*> TestFiles;
+	std::vector<TestFile*> testFiles;
 
 	/// <summary>
 	/// Other variables
 	/// </summary>
-	unsigned long long MaxCapacity;
-	unsigned long long DataBlockSize;
-	unsigned long long CurrentFileSize;
+	unsigned long long maxCapacity;
+	unsigned long long dataBlockSize;
+	unsigned long long currentFileSize;
 
 	State CurrentState;
 
 	int CurrentProgress;
 
-	unsigned long long CapacityToTest;
-	unsigned long long BytesWritten;
-	unsigned long long BytesToVerify;
+	unsigned long long capacityToTest;
+	unsigned long long bytesWritten;
+	unsigned long long bytesToVerify;
 
 	// Bytes verified, this is the ammount regardless of uniqueness
-	unsigned long long BytesVerified;
+	unsigned long long bytesVerified;
 
 	// Unique bytes verified, used in the last verification
-	unsigned long long RealBytesVerified;
+	unsigned long long bealBytesVerified;
 
-	double TotalWriteDuration;
-	double TotalReadDuration;
+	double totalWriteDuration;
+	double totalReadDuration;
 
-	double AverageReadSpeed;
-	double AverageWriteSpeed;
+	double averageReadSpeed;
+	double averageWriteSpeed;
 
-	bool TestRunning;
+	bool testRunning;
 
 
 	/// <summary>
@@ -204,13 +213,6 @@ private:
 	/// <param name="freeSpace">Free disk space</param>
 	/// <returns>True if successfull retrieving the disk space</returns>
 	bool GetDiskSpace(const std::string& diskPath, unsigned long long* totalSpace, unsigned long long* freeSpace);
-
-	/// <summary>
-	/// Deletes a single test file from the disk - No longer used
-	/// </summary>
-	/// <param name="filePath">Path</param>
-	/// <returns>True if deleted successfully</returns>
-	//bool DeleteTestFile(const std::string& filePath);
 
 	/// <summary>
 	/// Verifies a test file on the disk - Regenerates the data using the filePath for checking

@@ -170,5 +170,6 @@ EXPORT_C double DiskTest_GetAverageWriteSpeed(DiskTest* instance) WRAP(instance-
 EXPORT_C double DiskTest_GetAverageReadSpeed(DiskTest* instance) WRAP(instance->GetAverageReadSpeed())
 EXPORT_C long DiskTest_GetTimeRemaining(DiskTest* instance) WRAP(instance->GetTimeRemaining())
 EXPORT_C byte DiskTest_IsDiskEmpty(DiskTest* instance) WRAP(instance->IsDiskEmpty())
+EXPORT_C void DiskTest_DeleteTestFiles(DiskTest* instance) WRAP(instance->DeleteTestFiles())
 
 #pragma endregion
